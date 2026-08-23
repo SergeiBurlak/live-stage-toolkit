@@ -51,7 +51,6 @@ python3 stage_rig_calculator.py --width 7 --depth 6 --rig-height 4.5 \
 Self-test:
 
 python3 stage_rig_calculator.py --selftest
-tools/artnet_probe.py
 
 Show-network quality assurance. Listens on UDP 6454, decodes Art-Net DMX packets
 and reports, per universe: effective refresh rate, dropped frames detected from
@@ -62,7 +61,6 @@ Intended to be run before every rehearsal. If the 99th percentile interval
 exceeds one and a half DMX frames, fixtures will visibly stutter.
 
 python3 artnet_probe.py --seconds 30 --nominal-hz 44
-unreal/ShowNet/
 
 An Unreal Engine subsystem for deterministic Art-Net output. Sending DMX from the
 game thread means a render hitch becomes a lighting failure in front of an
