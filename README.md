@@ -1,146 +1,106 @@
-Live Stage Performance Toolkit
+Live Stage Toolkit
 
-Open engineering tools for creating markerless, real-time motion capture and output systems for theatrical productions using Unreal Engine 5.
+Open engineering tools for building real-time markerless motion capture and show
+output systems for live theatre with Unreal Engine 5.
 
-These tools were developed for the theatrical production *Queen Anne*, in which live dancers control digital performers generated in real-time and projected onto the stage. They have been made publicly available.
+These tools were written for Queen Anne, a theatre production in which live
+dancers drive digital performers rendered in real time and projected on stage.
+They are published because independent theatres should not have to rediscover
+this knowledge one failure at a time.
 
 Why this exists
 
-A markerless motion capture system works well in a studio. A theater is not a studio. The stage is dark, lights flicker, fixtures change color every few seconds, and performers move rapidly. Most questions determining the viability of such a system can be answered through arithmetic calculations before spending any money:
+Markerless motion capture works well in a studio. A theatre is not a studio.
+The stage is dark, the lights flicker, the fixtures change colour every few
+seconds, and the performers move fast. Most of the questions that decide whether
+such a system works at all are answerable with arithmetic, before any money is
+spent:
 
-How many cameras are needed, with what focal lengths, and at what height?
-How many pixels of body height will be visible from the furthest corner of the stage?
-How short must the shutter speed be to avoid motion blur, and how much light is required for that?
-Will the camera video streams fit within the network bandwidth?
-How bright will the projected image be on this surface?
-What latency will the audience experience?
+How many cameras, at what focal length, at what height?
+How many pixels of body height does that give at the far corner of the stage?
+How short must the exposure be to avoid motion blur, and how much light does that demand?
+Will the camera streams fit down the network?
+How bright will the projected image actually be on that surface?
+How much latency will the audience see?
 
-This toolkit provides numerical answers to these questions and supplies the runtime components necessary for the reliable execution of the show.
+This toolkit answers those questions numerically, and provides the runtime
+components needed to output a show safely.
 
 Tools
 tools/stage_rig_calculator.py
 
-Calculates the complete engineering specifications for the stage motion capture and projection system. Requires no dependencies other than the standard Python library. Example output for a 5 x 5 m capture area, using 5-megapixel global shutter cameras:
+Computes the full engineering budget of a stage capture and projection system.
+No dependencies beyond the Python standard library.
 
-Near / center / far distance ................. 3.57 / 5.50 / 9.18 m
-Required horizontal field of view ............ 70°
-Recommended focal length ..................... 6.0 mm
-Subject height in pixels (far point) ......... 339 pixels
-Maximum exposure for
-Required scene illumination: ................. 64 lux
-Network load per camera ...................... 2.406
-Sender-to-receiver latency ................... 187.7 ms
+Sample output for a 5 x 5 m capture zone with 5 MP global-shutter cameras:
+
+Distance near / centre / far ......... 3.57 / 5.50 / 9.18 m
+Required horizontal FOV .............. 70.5 degrees
+Recommended focal length ............. 6.0 mm
+Body height in pixels, far point ..... 339 px
+Maximum exposure for 2 px blur ....... 1.76 ms
+Required scene illuminance ........... 64 lux
+Per-camera network load .............. 2.406 Gbit/s
+End-to-end latency ................... 187.7 ms
 
 Run it:
 
 python3 stage_rig_calculator.py --width 7 --depth 6 --rig-height 4.5 \
---performers 4
+    --performers 4 --cameras 6 --preset imx250 --fps 60
 
 Self-test:
 
 python3 stage_rig_calculator.py --selftest
 tools/artnet_probe.py
 
-Show-network quality control system. It accepts UDP packets on port 6454, decodes Art-Net DMX packets, and provides reports for each broadcast node: effective refresh rate, number of dropped frames (detected via the sequence field), duplicates, out-of-order packets, and inter-packet interval percentiles.
+Show-network quality assurance. Listens on UDP 6454, decodes Art-Net DMX packets
+and reports, per universe: effective refresh rate, dropped frames detected from
+the sequence field, duplicates, out-of-order packets, and inter-packet interval
+percentiles.
 
-Recommended to run before every rehearsal. If the 99th percentile interval exceeds 1.5 DMX frames, the lighting fixtures will exhibit noticeable jitter.
+Intended to be run before every rehearsal. If the 99th percentile interval
+exceeds one and a half DMX frames, fixtures will visibly stutter.
 
 python3 artnet_probe.py --seconds 30 --nominal-hz 44
 unreal/ShowNet/
 
-Unreal Engine subsystem for deterministic Art-Net output. Sending DMX from the game thread means that a rendering failure translates into a lighting failure in front of the audience. This component offloads output to an isolated, fixed-rate thread featuring double-buffered data channels, a watchdog timer that disables all universes if the game thread hangs, an interlocked emergency stop, and a three-frame shutdown sequence to ensure no fixture remains stuck on a stale value.
+An Unreal Engine subsystem for deterministic Art-Net output. Sending DMX from the
+game thread means a render hitch becomes a lighting failure in front of an
+audience. This component moves output to an isolated thread at a fixed rate, with
+double-buffered channel data, a watchdog that blacks out every universe if the
+game thread stalls, a latched emergency stop, and three blackout frames on
+shutdown so no fixture can latch on a stale value.
 
-What to know before buying anything
+Findings worth knowing before you buy anything
 
-Use global shutter sensors. LED stage lights control brightness via pulse-width modulation (PWM) at frequencies ranging from hundreds to thousands of hertz. A rolling shutter sensor exposes the image row by row.
+Use global-shutter sensors. LED stage fixtures dim by pulse-width modulation
+at hundreds to thousands of hertz. A rolling-shutter sensor exposes each row at a
+different phase of that cycle and records banding. A global shutter exposes every
+pixel at once, so the mechanism that produces banding does not exist.
 
-Near-infrared (NIR) illumination. At a realistic dancer's hand speed of 6 m/s, limiting motion blur to under two pixels restricts exposure time to approximately 1.76 ms.
+Light in the near infrared. At a realistic dance hand speed of 6 m/s, keeping
+motion blur under two pixels caps exposure at roughly 1.76 ms, which demands far
+more light than a dark stage provides. Infrared illumination at 850 nm with
+bandpass filters on the lenses removes stage lighting from the capture path
+entirely. The lighting designer regains full freedom.
 
-Hardware-level synchronization. A 5 ms desynchronization between cameras causes a 30 mm shift for a hand moving at 6 m/s—enough to disrupt triangulation. Hardware synchronization is required.
+Synchronise in hardware. A 5 ms desynchronisation between cameras displaces a
+hand moving at 6 m/s by 30 mm, which is enough to break triangulation. Hardware
+genlock reduces the error to fractions of a millimetre. Software frame alignment
+does not.
 
-Check your network before selecting cameras.
+Check the network before choosing cameras. A 5 MP monochrome sensor at 60 fps
+produces 2.4 Gbit/s. That does not fit a gigabit link. Either the resolution, the
+frame rate, or the interface has to change, and it is cheaper to discover this
+with a calculator than with a purchase order.
 
 Status
 
-Early-stage development. The tools are currently used in the production environment of the project for which they were created. The calculator and probe include self-test functions. Bug reports and pull requests are welcome.
+Early. Tools are used in production on the project they were written for. The
+calculator and the probe include self-tests. Issues and pull requests welcome.
 
-License
+Licence
 
-MIT. Use, modify, and implement freely.
+MIT. Use it, change it, ship it.
 
-
-
-
-РУССКИЙ ЯЗЫК:
-
-Набор инструментов для живых выступлений на сцене
-
-Открытые инженерные инструменты для создания систем захвата движений в реальном времени без маркеров и вывода результатов для театральных постановок на Unreal Engine 5.
-
-Эти инструменты были разработаны для театральной постановки «Королева Анна» , в которой живые танцоры управляют цифровыми исполнителями, создаваемыми в реальном времени и проецируемыми на сцену. Они опубликованы.
-
-Почему это существует
-
-Бесконтактная система захвата движений хорошо работает в студии. Театр — это не студия. Сцена темная, свет мерцает, светильники меняют цвет каждые несколько секунд, а исполнители двигаются быстро. На большинство вопросов, определяющих работоспособность такой системы, можно ответить с помощью арифметических вычислений, прежде чем тратить деньги:
-
-Сколько камер, с каким фокусным расстоянием, на какой высоте?
-На сколько пикселей по высоте тела это повлечёт за собой дальний угол сцены?
-Насколько короткой должна быть выдержка, чтобы избежать размытия изображения из-за движения, и сколько света для этого требуется?
-Поместятся ли видеопотоки с камер в сеть?
-Насколько ярким будет проецируемое изображение на этой поверхности?
-Какую задержку увидят зрители?
-
-Этот набор инструментов дает численные ответы на эти вопросы и предоставляет компоненты среды выполнения, необходимые для безопасного вывода шоу.
-
-Инструменты
-tools/stage_rig_calculator.py
-
-Вычисляет полный инженерный бюджет системы захвата и проекции сцены. Не требует зависимостей, кроме стандартной библиотеки Python.
-
-Пример выходных данных для зоны съемки 5 x 5 м, полученных с помощью 5-мегапиксельных камер с глобальным затвором:
-
-Расстояние вблизи / в центре / вдали ......... 3,57 / 5,50 / 9,18 м
-Требуемое горизонтальное поле зрения .............. 70
-Рекомендуемое фокусное расстояние ............. 6,0 мм
-Высота тела в пикселях, дальняя точка ..... 339 пикселей
-Максимальная экспозиция для
-Требуемая освещенность сцены: ........... 64 люкс
-Нагрузка на сеть для каждой камеры .............. 2,406
-Задержка от отправителя до получателя ................... 187,7 мс
-
-Запустите его:
-
-python3 stage_rig_calculator.py --width 7 --depth 6 --rig-height 4.5 \
-    --исполнители 4
-
-Самопроверка:
-
-python3 stage_rig_calculator.py --selftest
-tools/artnet_probe.py
-
-Система контроля качества Show-network. Принимает UDP-пакеты 6454, декодирует пакеты Art-Net DMX и предоставляет отчеты по каждому вещательному узлу: эффективная частота обновления, количество пропущенных кадров, обнаруженных в поле последовательности, дубликаты, пакеты, поступившие не по порядку, и процентили межпакетных интервалов.
-
-Рекомендуется запускать перед каждой репетицией. Если интервал 99-го процентиля превышает полтора кадра DMX, световые приборы будут заметно подергиваться.
-
-python3 artnet_probe.py --seconds 30 --nominal-hz 44
-unreal/ShowNet/
-
-Подсистема Unreal Engine для детерминированного вывода Art-Net. Отправка DMX из игрового потока означает, что сбой рендеринга превратится в сбой освещения перед аудиторией. Этот компонент перемещает вывод в изолированный поток с фиксированной скоростью, с двойной буферизацией данных каналов, сторожевым таймером, который отключает все вселенные, если игровой поток зависает, блокируемой аварийной остановкой и тремя кадрами отключения при завершении работы, чтобы ни один прибор не мог зафиксироваться на устаревшем значении.
-
-Что стоит знать, прежде чем что-либо покупать
-
-Используйте датчики с глобальным затвором. Светодиодные сценические светильники регулируют яркость с помощью широтно-импульсной модуляции с частотой от сотен до тысяч герц. Датчик с построчным затвором обеспечивает экспозицию каждого ряда.
-
-Свет в ближнем инфракрасном диапазоне. При реалистичной скорости движения танцевальных рук 6 м/с, при размытии движения менее двух пикселей, экспозиция ограничивается примерно 1,76.
-
-Синхронизация на аппаратном уровне. Десинхронизация между камерами на 5 мс приводит к смещению руки, движущейся со скоростью 6 м/с, на 30 мм, чего достаточно, чтобы нарушить триангуляцию. Аппаратная синхронизация.
-
-Перед выбором камер проверьте сеть. A 5
-
-Статус
-
-На ранней стадии разработки. Инструменты используются в производственной среде в рамках проекта, для которого они были написаны. Калькулятор и зонд включают самотестирование. Приветствуются сообщения об ошибках и запросы на добавление изменений.
-
-Лицензия
-
-MIT. Используйте, изменяйте, внедряйте.
+[Русская версия](README.ru.md)
