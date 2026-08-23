@@ -35,12 +35,19 @@ No dependencies beyond the Python standard library.
 Sample output for a 5 x 5 m capture zone with 5 MP global-shutter cameras:
 
 Distance near / centre / far ......... 3.57 / 5.50 / 9.18 m
+
 Required horizontal FOV .............. 70.5 degrees
+
 Recommended focal length ............. 6.0 mm
+
 Body height in pixels, far point ..... 339 px
+
 Maximum exposure for 2 px blur ....... 1.76 ms
+
 Required scene illuminance ........... 64 lux
+
 Per-camera network load .............. 2.406 Gbit/s
+
 End-to-end latency ................... 187.7 ms
 
 Run it:
