@@ -40,15 +40,6 @@ tools/stage_rig_calculator.py
 
 Сквозная задержка (end-to-end latency) ........... 187,7 мс
 
-Distance near / centre / far ......... 3.57 / 5.50 / 9.18 m
-Required horizontal FOV .............. 70.5 degrees
-Recommended focal length ............. 6.0 mm
-Body height in pixels, far point ..... 339 px
-Maximum exposure for 2 px blur ....... 1.76 ms
-Required scene illuminance ........... 64 lux
-Per-camera network load .............. 2.406 Gbit/s
-End-to-end latency ................... 187.7 ms
-
 Запуск:
 
 python3 stage_rig_calculator.py --width 7 --depth 6 --rig-height 4.5 \
