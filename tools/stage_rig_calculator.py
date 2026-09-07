@@ -39,7 +39,7 @@ import sys
 from dataclasses import dataclass
 
 # --------------------------------------------------------------------------- #
-# Sensors. Global shutter unless stated otherwise.
+# Sensors. Global shutter unless stated otherwise...
 # --------------------------------------------------------------------------- #
 
 
