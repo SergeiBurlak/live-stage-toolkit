@@ -31,7 +31,8 @@ class StageRigApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Инженерный калькулятор: Захват движений и Проекция")
-        self.root.geometry("640x780")
+        self.root.geometry("640x600")
+        self.root.minsize(560, 420)
         self.root.resizable(True, True)
 
         self._build_menu()
@@ -173,7 +174,7 @@ class StageRigApp:
 
         lf_res = ttk.LabelFrame(self.calc_frame, text="ВЕРДИКТ ИНЖЕНЕРНОГО ЯДРА")
         lf_res.pack(fill='both', expand=True, padx=10, pady=5)
-        self.text_res = tk.Text(lf_res, height=14, font=('Consolas', 10), state='disabled', bg="#f4f4f4")
+        self.text_res = tk.Text(lf_res, height=8, font=('Consolas', 10), state='disabled', bg="#f4f4f4")
         self.text_res.pack(fill='both', expand=True, padx=5, pady=5)
         self._last_report = None
 
@@ -334,7 +335,7 @@ class StageRigApp:
 
         lf_logs = ttk.LabelFrame(self.probe_frame, text="Состояние сети (обновляется каждую секунду)")
         lf_logs.pack(fill='both', expand=True, padx=10, pady=5)
-        self.text_probe = tk.Text(lf_logs, height=15, font=('Consolas', 10), state='disabled')
+        self.text_probe = tk.Text(lf_logs, height=8, font=('Consolas', 10), state='disabled')
         self.text_probe.pack(fill='both', expand=True, padx=5, pady=5)
         self.text_probe.tag_configure("ok", foreground="#1a7f37")
         self.text_probe.tag_configure("warn", foreground="#9a6700")
