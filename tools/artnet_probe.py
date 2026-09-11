@@ -43,6 +43,18 @@ OP_POLL = 0x2000
 OP_POLL_REPLY = 0x2100
 OP_SYNC = 0x5200
 
+# A sender restart (console reboot, software relaunch) resets its Art-Net
+# sequence counter back to the beginning. Seen from here that looks exactly
+# like a burst of dropped frames: the next packet's sequence number is small
+# and "far behind" whatever we last observed. Losing this many consecutive
+# frames in a single packet interval from real network jitter is implausible;
+# a restart is the far more likely explanation. Both signals together (a low
+# restarting sequence AND an implausibly large computed gap) are required
+# before we call it a reset instead of a loss, to avoid masking genuine
+# large drops. This is a heuristic, not a certainty - see summary()["resets"].
+RESET_LIKELY_SEQUENCE_MAX = 3
+RESET_LIKELY_GAP_MIN = 10
+
 
 @dataclass
 class UniverseStats:
@@ -51,6 +63,7 @@ class UniverseStats:
     dropped: int = 0
     out_of_order: int = 0
     duplicates: int = 0
+    resets: int = 0
     last_sequence: int | None = None
     last_timestamp: float | None = None
     intervals: list[float] = field(default_factory=list)
@@ -85,6 +98,9 @@ class UniverseStats:
             gap = (sequence - expected) % 256
             if gap > 128:
                 self.out_of_order += 1
+            elif sequence <= RESET_LIKELY_SEQUENCE_MAX and gap >= RESET_LIKELY_GAP_MIN:
+                # Almost certainly a sender restart, not a real loss burst.
+                self.resets += 1
             else:
                 self.dropped += gap
         self.last_sequence = sequence
@@ -103,6 +119,7 @@ class UniverseStats:
             "dropped": self.dropped,
             "duplicates": self.duplicates,
             "out_of_order": self.out_of_order,
+            "resets": self.resets,
             "channels": self.max_channel_seen,
         }
         if self.intervals:
@@ -146,6 +163,15 @@ def parse_artdmx(payload: bytes) -> tuple[int, int, int] | None:
 
 
 class ArtNetProbe:
+    """
+    Thread-safety note: the CLI uses this single-threaded (start -> run ->
+    report -> close, in one thread). A GUI that wants a live-updating display
+    typically runs run() on a background thread while polling report() from
+    the UI thread on a timer - that is a real cross-thread read/write pattern
+    on self.universes, so it is guarded by self._lock below. The lock is
+    uncontended in the CLI case and costs nothing meaningful at DMX rates.
+    """
+
     def __init__(self, bind_addr: str = "0.0.0.0", port: int = ARTNET_PORT) -> None:
         self.bind_addr = bind_addr
         self.port = port
@@ -153,11 +179,11 @@ class ArtNetProbe:
         self.non_dmx_packets = 0
         self._stop = threading.Event()
         self._sock: socket.socket | None = None
+        self._lock = threading.Lock()
 
     def start(self) -> None:
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1 << 21)
         self._sock.bind((self.bind_addr, self.port))
         self._sock.settimeout(0.25)
@@ -173,14 +199,16 @@ class ArtNetProbe:
             now = time.monotonic()
             parsed = parse_artdmx(payload)
             if parsed is None:
-                self.non_dmx_packets += 1
+                with self._lock:
+                    self.non_dmx_packets += 1
                 continue
             port_address, sequence, length = parsed
-            stats = self.universes.get(port_address)
-            if stats is None:
-                stats = UniverseStats(port_address=port_address)
-                self.universes[port_address] = stats
-            stats.observe(sequence, length, now)
+            with self._lock:
+                stats = self.universes.get(port_address)
+                if stats is None:
+                    stats = UniverseStats(port_address=port_address)
+                    self.universes[port_address] = stats
+                stats.observe(sequence, length, now)
 
     def stop(self) -> None:
         self._stop.set()
@@ -191,11 +219,12 @@ class ArtNetProbe:
             self._sock = None
 
     def report(self) -> dict:
-        return {
-            "universes": [s.summary() for s in
-                          sorted(self.universes.values(), key=lambda u: u.port_address)],
-            "non_artdmx_packets": self.non_dmx_packets,
-        }
+        with self._lock:
+            return {
+                "universes": [s.summary() for s in
+                              sorted(self.universes.values(), key=lambda u: u.port_address)],
+                "non_artdmx_packets": self.non_dmx_packets,
+            }
 
 
 def print_report(report: dict, nominal_hz: float) -> int:
@@ -206,25 +235,31 @@ def print_report(report: dict, nominal_hz: float) -> int:
               "and the sender target address.")
         return 2
 
-    header = (f"{'UNI':>6} {'PKTS':>7} {'Hz':>7} {'DROP':>6} {'DUP':>5} {'OOO':>5} "
+    header = (f"{'UNI':>6} {'PKTS':>7} {'Hz':>7} {'DROP':>6} {'DUP':>5} {'OOO':>5} {'RST':>4} "
               f"{'p50':>8} {'p95':>8} {'p99':>8} {'max':>8}")
     print(header)
     print("-" * len(header))
     worst = 0.0
     total_dropped = 0
+    total_resets = 0
     for row in rows:
         print(f"{row['universe']:>6} {row['packets']:>7} {row['hz']:>7.2f} "
               f"{row['dropped']:>6} {row['duplicates']:>5} {row['out_of_order']:>5} "
+              f"{row.get('resets', 0):>4} "
               f"{row.get('interval_p50_ms', 0):>8.2f} {row.get('interval_p95_ms', 0):>8.2f} "
               f"{row.get('interval_p99_ms', 0):>8.2f} {row.get('interval_max_ms', 0):>8.2f}")
         worst = max(worst, row.get("interval_p99_ms", 0.0))
         total_dropped += row["dropped"]
+        total_resets += row.get("resets", 0)
 
     print()
     print(f"Nominal period at {nominal_hz:g} Hz: {nominal_ms:.2f} ms; "
           f"worst p99 observed: {worst:.2f} ms")
     if report["non_artdmx_packets"]:
         print(f"Non-ArtDmx Art-Net packets (poll/sync/reply): {report['non_artdmx_packets']}")
+    if total_resets:
+        print(f"Sender restarts detected (sequence counter reset, RST column): {total_resets}. "
+              f"Not counted as loss - these are excluded from the DROP column and the verdict.")
 
     if total_dropped or worst > nominal_ms * 1.5:
         print("VERDICT: FAIL - network is not show-ready (loss or jitter above one DMX frame).")
@@ -262,8 +297,28 @@ def selftest() -> int:
     uni = report["universes"][0]
     assert uni["universe"] == 3, f"unexpected port address {uni['universe']}"
     assert uni["dropped"] == 2, f"expected 2 dropped frames, got {uni['dropped']}"
+    assert uni["resets"] == 0, f"a real 2-frame loss must not be classified as a reset"
     print(json.dumps(report, indent=2))
-    print("SELFTEST OK")
+    print("SELFTEST (loss detection) OK")
+
+    # Second scenario: a benign sender restart (sequence counter back to 1)
+    # must be recognised as a reset, not miscounted as dozens of dropped frames.
+    # last_sequence must land in the upper half of the 1..255 cycle for the
+    # naive gap math to misfire this way (see audit notes) - warm up to 199.
+    stats = UniverseStats(port_address=7)
+    t = 0.0
+    seq = 1
+    for _ in range(199):
+        stats.observe(sequence=seq, length=512, timestamp=t)
+        seq = 1 if seq == 255 else seq + 1
+        t += 1 / 44
+    assert stats.last_sequence == 199, stats.last_sequence
+    dropped_before = stats.dropped
+    stats.observe(sequence=1, length=512, timestamp=t)
+    assert stats.dropped == dropped_before, (
+        f"benign restart must not be counted as dropped frames, got +{stats.dropped - dropped_before}")
+    assert stats.resets == 1, "benign restart must be counted as exactly one reset"
+    print("SELFTEST (restart heuristic) OK")
     return 0
 
 

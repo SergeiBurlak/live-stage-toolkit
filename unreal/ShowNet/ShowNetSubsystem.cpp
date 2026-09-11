@@ -11,6 +11,12 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogShowNet, Log, All);
 
+// Minimum accepted watchdog timeout. A typical 30 fps game thread ticks
+// every ~33 ms; anything much below that trips the watchdog on ordinary
+// frame-time variance rather than on a genuine freeze, producing constant
+// false blackouts. See the KeepAlive()/Tick note in the header.
+static constexpr float MinWatchdogMs = 100.f;
+
 // ---------------------------------------------------------------------------
 // FShowNetSender
 // ---------------------------------------------------------------------------
@@ -19,8 +25,16 @@ FShowNetSender::FShowNetSender(const FString& InTargetIp, int32 InPort, float In
 	: TargetIp(InTargetIp)
 	, Port(InPort)
 	, PeriodSeconds(1.0 / FMath::Clamp(InRefreshHz, 1.f, 44.f))
-	, WatchdogSeconds(FMath::Max(InWatchdogMs, 20.f) / 1000.0)
+	, WatchdogSeconds(FMath::Max(InWatchdogMs, MinWatchdogMs) / 1000.0)
 {
+	if (InWatchdogMs < MinWatchdogMs)
+	{
+		UE_LOG(LogShowNet, Warning,
+			TEXT("Requested watchdog timeout %.1f ms is below the %.0f ms floor and was clamped. ")
+			TEXT("A value this low will likely cause spurious blackouts on normal frame-time variance ")
+			TEXT("unless KeepAlive() is driven by Tick at a very high rate."),
+			InWatchdogMs, MinWatchdogMs);
+	}
 	LastKeepAliveTime = FPlatformTime::Seconds();
 }
 
@@ -104,6 +118,16 @@ uint32 FShowNetSender::Run()
 	TArray<uint8> Blackout;
 	Blackout.Init(0, 512);
 
+	// Per-frame local copy of what needs to go out. Filled under DataGuard,
+	// then sent with the lock released - see the note below Run().
+	struct FOutgoingUniverse
+	{
+		int32 Address = 0;
+		uint8 Sequence = 0;
+		TArray<uint8> Data;
+	};
+	TArray<FOutgoingUniverse> Outgoing;
+
 	double NextSendTime = FPlatformTime::Seconds();
 	double LastLoopTime = NextSendTime;
 
@@ -138,35 +162,61 @@ uint32 FShowNetSender::Run()
 		const bool bWatchdogTripped = SinceKeepAlive > WatchdogSeconds;
 		const bool bForceZero = bWatchdogTripped || bEmergencyStop;
 
-		TArray<int32> Addresses;
+		// Copy this frame's channel data out while holding DataGuard, then
+		// release the lock before doing any socket I/O. SendTo() can block
+		// (a full send buffer, a slow driver, a transient network hiccup);
+		// it must never do so while the game thread is waiting on this same
+		// lock for SetChannel()/SetChannels()/RegisterUniverse() - that
+		// would reintroduce exactly the game-thread coupling this subsystem
+		// exists to remove.
+		Outgoing.Reset();
 		{
 			FScopeLock Lock(&DataGuard);
+			TArray<int32> Addresses;
 			Universes.GetKeys(Addresses);
-
+			Outgoing.Reserve(Addresses.Num());
 			for (int32 Address : Addresses)
 			{
 				const TArray<uint8>* Source = bForceZero ? &Blackout : Universes.Find(Address);
+				if (!Source)
+				{
+					// Defensive only: cannot happen under the current locking
+					// (Address just came from this same map under this same
+					// lock), but a future refactor of this scope should not
+					// be able to turn into a null deref.
+					continue;
+				}
 				uint8& Seq = SequenceCounters.FindOrAdd(Address);
 				Seq = (Seq == 255) ? 1 : Seq + 1;
 
-				BuildArtDmxPacket(Address, Source->GetData(), Seq, Packet);
+				FOutgoingUniverse& Entry = Outgoing.AddDefaulted_GetRef();
+				Entry.Address = Address;
+				Entry.Sequence = Seq;
+				Entry.Data = *Source;
+			}
+		}
 
-				int32 BytesSent = 0;
-				const bool bOk = Socket->SendTo(Packet.GetData(), Packet.Num(), BytesSent, *RemoteAddr);
+		int64 SentThisFrame = 0;
+		int64 ErrorsThisFrame = 0;
+		for (const FOutgoingUniverse& Entry : Outgoing)
+		{
+			BuildArtDmxPacket(Entry.Address, Entry.Data.GetData(), Entry.Sequence, Packet);
 
-				FScopeLock StatLock(&StatsGuard);
-				if (bOk && BytesSent == Packet.Num())
-				{
-					++Stats.PacketsSent;
-				}
-				else
-				{
-					++Stats.SendErrors;
-				}
+			int32 BytesSent = 0;
+			const bool bOk = Socket->SendTo(Packet.GetData(), Packet.Num(), BytesSent, *RemoteAddr);
+			if (bOk && BytesSent == Packet.Num())
+			{
+				++SentThisFrame;
+			}
+			else
+			{
+				++ErrorsThisFrame;
 			}
 		}
 
 		FScopeLock StatLock(&StatsGuard);
+		Stats.PacketsSent += SentThisFrame;
+		Stats.SendErrors += ErrorsThisFrame;
 		Stats.WorstLoopIntervalMs = FMath::Max(Stats.WorstLoopIntervalMs, static_cast<float>(LoopIntervalMs));
 		Stats.TimeSinceKeepAliveMs = static_cast<float>(SinceKeepAlive * 1000.0);
 		Stats.bBlackoutActive = bForceZero;
@@ -256,6 +306,11 @@ void FShowNetSender::SetEmergencyStop(bool bEnabled)
 	bEmergencyStop = bEnabled;
 }
 
+bool FShowNetSender::IsEmergencyStopped() const
+{
+	return bEmergencyStop;
+}
+
 FShowNetStats FShowNetSender::Snapshot() const
 {
 	FScopeLock Lock(&StatsGuard);
@@ -273,34 +328,51 @@ void UShowNetSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UShowNetSubsystem::Deinitialize()
 {
+	ShutdownSender();
+	Super::Deinitialize();
+}
+
+void UShowNetSubsystem::ShutdownSender()
+{
+	// Deliberately keyed on Sender, not SenderThread: if a previous Configure()
+	// call succeeded in Init() but FRunnableThread::Create() then failed (a
+	// real, if rare, failure mode - thread exhaustion, platform limits), the
+	// old code left Sender allocated with SenderThread null, and the next
+	// Configure() call skipped cleanup entirely because it only checked
+	// SenderThread - leaking the FShowNetSender and its already-bound socket.
+	// Checking Sender here means that leak path no longer exists.
 	if (SenderThread)
 	{
-		Sender->Stop();
+		if (Sender)
+		{
+			Sender->Stop();
+		}
 		SenderThread->WaitForCompletion();
 		delete SenderThread;
 		SenderThread = nullptr;
 	}
-
 	if (Sender)
 	{
 		delete Sender;
 		Sender = nullptr;
 	}
-
-	Super::Deinitialize();
 }
 
 bool UShowNetSubsystem::Configure(const FString& InTargetIp, int32 InPort, float InRefreshHz, float InWatchdogMs)
 {
-	if (SenderThread)
+	// See the header note: reconfiguring silently clears a latched Emergency
+	// Stop. That is intentional (a reconfigure is a fresh start), but it
+	// must never be silent - log it loudly so it shows up in the Output Log
+	// and in any log capture from a live show.
+	if (Sender && Sender->IsEmergencyStopped())
 	{
-		Sender->Stop();
-		SenderThread->WaitForCompletion();
-		delete SenderThread;
-		SenderThread = nullptr;
-		delete Sender;
-		Sender = nullptr;
+		UE_LOG(LogShowNet, Warning,
+			TEXT("Configure() called while EmergencyStop() was active - the stop is being CLEARED ")
+			TEXT("by this reconfiguration. If the rig has not been confirmed safe, do not proceed ")
+			TEXT("until ClearEmergencyStop()/Configure() is deliberate, not incidental."));
 	}
+
+	ShutdownSender();
 
 	Sender = new FShowNetSender(InTargetIp, InPort, InRefreshHz, InWatchdogMs);
 	if (!Sender->Init())
@@ -311,7 +383,14 @@ bool UShowNetSubsystem::Configure(const FString& InTargetIp, int32 InPort, float
 	}
 
 	SenderThread = FRunnableThread::Create(Sender, TEXT("ShowNetSender"), 0, TPri_AboveNormal);
-	return SenderThread != nullptr;
+	if (!SenderThread)
+	{
+		UE_LOG(LogShowNet, Error, TEXT("Failed to create ShowNet sender thread."));
+		delete Sender;
+		Sender = nullptr;
+		return false;
+	}
+	return true;
 }
 
 void UShowNetSubsystem::RegisterUniverse(int32 PortAddress)
