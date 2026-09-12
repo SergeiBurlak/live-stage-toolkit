@@ -30,6 +30,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import datetime
 import json
+import os
 import threading
 
 import stage_rig_calculator as stage_math
@@ -261,6 +262,9 @@ class StageRigApp:
         lf_res = self._labelframe(self.calc_frame, "frame_verdict", fill='both', expand=True, padx=10, pady=5)
         self.text_res = tk.Text(lf_res, height=8, font=('Consolas', 10), state='disabled', bg="#f4f4f4")
         self.text_res.pack(fill='both', expand=True, padx=5, pady=5)
+        # Small parenthetical translation of an engine verdict string, right
+        # after the (always-English) original - see _render_report().
+        self.text_res.tag_configure("verdict_note", font=('Consolas', 8))
         self._last_report = None
 
     def _refresh_surface_combo(self):
@@ -348,7 +352,10 @@ class StageRigApp:
     def _render_report(self, report):
         # NOTE: verdict/sensor-note strings inside `report` come straight
         # from stage_math.analyse() and are fixed English - intentionally
-        # not translated, see the module docstring.
+        # not translated, see the module docstring. When the interface is
+        # in a non-English language, _emit() below appends a small
+        # parenthetical translation (i18n.VERDICT_TRANSLATIONS) right after
+        # the English original - the English wording itself never changes.
         t = self.i18n
         inp = report["input"]
         g = report["geometry"]
@@ -357,60 +364,89 @@ class StageRigApp:
         p = report["projection"]
         l = report["latency"]
 
-        lines = [
-            t("report_header"),
-            t("report_scene_line", volume=inp['volume_m'], performers=inp['performers'],
-              cameras=inp['cameras_planned']),
-            t("report_sensor_line", sensor=inp['sensor'], gs=t("yes") if inp['global_shutter'] else t("no")),
-            "",
-            t("report_section_1"),
-            t("report_lens", focal=g['recommended_focal_mm'],
-              h_fov=g['actual_horizontal_fov_deg'], v_fov=g['actual_vertical_fov_deg']),
-            t("report_person_px", px=g['person_px_far']),
-            t("report_tracking_verdict", verdict=report['geometry_verdict'].upper()),
-            "",
-            t("report_section_2"),
-            t("report_max_exposure", ms=e['max_exposure_ms']),
-            t("report_required_light", f_number=e['f_number'], iso=e['sensor_iso_equivalent'],
-              lux=e['required_scene_illuminance_lux']),
-            t("report_light_verdict", verdict=e['verdict']),
-            "",
-            t("report_section_3"),
-            t("report_per_camera", gbps=n['per_camera_gbps']),
-            t("report_uplink_verdict", verdict=n['server_uplink_verdict']),
-            "",
-            t("report_section_4"),
-            t("report_effective_lumens", lumens=p['effective_lumens']),
-            t("report_screen_illuminance", lux=p['screen_illuminance_lux']),
-            t("report_brightness_verdict", verdict=p['verdict']),
-            "",
-            t("report_section_5"),
-            t("report_latency_path"),
-            t("report_latency_estimate", ms=l['total_ms'], verdict=l['verdict']),
-        ]
         self.text_res.config(state='normal')
         self.text_res.delete('1.0', tk.END)
-        self.text_res.insert(tk.END, "\n".join(lines) + "\n")
+
+        def emit(line, verdict=None):
+            self.text_res.insert(tk.END, line)
+            if verdict is not None:
+                note = t.translate_verdict(verdict)
+                if note:
+                    self.text_res.insert(tk.END, f" ({note})", "verdict_note")
+            self.text_res.insert(tk.END, "\n")
+
+        emit(t("report_header"))
+        emit(t("report_scene_line", volume=inp['volume_m'], performers=inp['performers'],
+              cameras=inp['cameras_planned']))
+        emit(t("report_sensor_line", sensor=inp['sensor'], gs=t("yes") if inp['global_shutter'] else t("no")))
+        emit("")
+        emit(t("report_section_1"))
+        emit(t("report_lens", focal=g['recommended_focal_mm'],
+              h_fov=g['actual_horizontal_fov_deg'], v_fov=g['actual_vertical_fov_deg']))
+        emit(t("report_person_px", px=g['person_px_far']))
+        emit(t("report_tracking_verdict", verdict=report['geometry_verdict'].upper()),
+             verdict=report['geometry_verdict'])
+        emit("")
+        emit(t("report_section_2"))
+        emit(t("report_max_exposure", ms=e['max_exposure_ms']))
+        emit(t("report_required_light", f_number=e['f_number'], iso=e['sensor_iso_equivalent'],
+              lux=e['required_scene_illuminance_lux']))
+        emit(t("report_light_verdict", verdict=e['verdict']), verdict=e['verdict'])
+        emit("")
+        emit(t("report_section_3"))
+        emit(t("report_per_camera", gbps=n['per_camera_gbps']))
+        emit(t("report_uplink_verdict", verdict=n['server_uplink_verdict']), verdict=n['server_uplink_verdict'])
+        emit("")
+        emit(t("report_section_4"))
+        emit(t("report_effective_lumens", lumens=p['effective_lumens']))
+        emit(t("report_screen_illuminance", lux=p['screen_illuminance_lux']))
+        emit(t("report_brightness_verdict", verdict=p['verdict']), verdict=p['verdict'])
+        emit("")
+        emit(t("report_section_5"))
+        emit(t("report_latency_path"))
+        emit(t("report_latency_estimate", ms=l['total_ms'], verdict=l['verdict']), verdict=l['verdict'])
+
         self.text_res.config(state='disabled')
 
     def save_report(self):
         text = self.text_res.get('1.0', tk.END).strip()
         if not text:
-            messagebox.showwarning(self.i18n("report_empty_title"), self.i18n("report_empty_body"))
+            messagebox.showwarning(self.i18n("report_empty_title"), self.i18n("report_empty_body"),
+                                   parent=self.root)
             return
 
-        filepath = filedialog.asksaveasfilename(defaultextension=".txt",
-                                                 filetypes=[("Text files", "*.txt")])
+        # The dialog call itself (not just the write below) is wrapped: on
+        # some launch contexts the native Windows save dialog can raise
+        # instead of returning a path, and an uncaught exception here would
+        # otherwise abort the click with no visible feedback at all - the
+        # button "does nothing" from the user's point of view.
+        try:
+            filepath = filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+                parent=self.root)
+        except Exception as e:
+            messagebox.showerror(self.i18n("save_err_title"), self.i18n("save_err_body", err=e),
+                                 parent=self.root)
+            return
         if not filepath:
             return
+
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(f"{self.i18n('frame_verdict')}\n")
                 f.write(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
                 f.write(text)
-            messagebox.showinfo(self.i18n("save_ok_title"), self.i18n("save_ok_body"))
+            if not os.path.exists(filepath):
+                # Belt-and-braces: `open()`/`write()` completing without an
+                # exception should mean the file exists, but if it somehow
+                # doesn't, say so explicitly rather than showing "Saved!"
+                # for a file that isn't actually on disk.
+                raise OSError(f"write reported success but {filepath} is missing")
         except Exception as e:
-            messagebox.showerror(self.i18n("save_err_title"), self.i18n("save_err_body", err=e))
+            messagebox.showerror(self.i18n("save_err_title"), self.i18n("save_err_body", err=e),
+                                 parent=self.root)
+            return
 
         if self._last_report is not None:
             json_path = filepath.rsplit(".", 1)[0] + ".json"
@@ -419,6 +455,10 @@ class StageRigApp:
                     json.dump(self._last_report, f, indent=2, ensure_ascii=False)
             except Exception:
                 pass  # the .txt report already saved; the .json is a bonus, not critical
+
+        messagebox.showinfo(self.i18n("save_ok_title"),
+                            self.i18n("save_ok_body_path", path=filepath),
+                            parent=self.root)
 
     # ------------------------------------------------------------------ #
     # Network probe tab - wired to the real Art-Net QA engine

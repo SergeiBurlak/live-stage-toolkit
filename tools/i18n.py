@@ -128,6 +128,7 @@ _EN: dict[str, str] = {
     "report_empty_body": "Click \u201cCalculate specification\u201d first.",
     "save_ok_title": "Saved",
     "save_ok_body": "Report saved!",
+    "save_ok_body_path": "Report saved to:\n{path}",
     "save_err_title": "Save error",
     "save_err_body": "Could not save: {err}",
 
@@ -243,6 +244,7 @@ _RU: dict[str, str] = {
     "report_empty_body": "Сначала нажмите «Рассчитать спецификацию».",
     "save_ok_title": "Успешно",
     "save_ok_body": "Отчёт сохранён!",
+    "save_ok_body_path": "Отчёт сохранён в:\n{path}",
     "save_err_title": "Ошибка сохранения",
     "save_err_body": "Не удалось сохранить: {err}",
 
@@ -286,6 +288,75 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "ru": _RU,
 }
 
+# ---------------------------------------------------------------------------
+# Verdict translations
+# ---------------------------------------------------------------------------
+# stage_rig_calculator.py's engineering verdicts (e.g. "LIGHT DEFICIT - add
+# infrared illumination or faster glass") stay fixed English in the report
+# itself - the calculation engine is shared and its wording must read
+# identically for every language, see stage_rig_gui.py's module docstring.
+#
+# This table is a SEPARATE, purely cosmetic layer on top of that: for any
+# non-English interface language, the GUI looks the exact English verdict
+# string up here and appends the result in parentheses, in a smaller font,
+# right after the English original. A verdict or language missing from this
+# table simply gets no parenthetical - same safe-fallback philosophy as
+# TRANSLATIONS above, just one level more granular (per string, not per key).
+#
+# Adding a language: add its code as a value-dict key wherever you have a
+# translation ready. You do not need to fill in every verdict string for a
+# new language on day one.
+VERDICT_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "subject resolution comfortable": {
+        "ru": "разрешение фигуры комфортное",
+    },
+    "subject resolution minimally sufficient": {
+        "ru": "разрешение фигуры минимально достаточное",
+    },
+    "SUBJECT RESOLUTION TOO LOW - bigger sensor or tighter zones": {
+        "ru": "РАЗРЕШЕНИЕ ФИГУРЫ СЛИШКОМ НИЗКОЕ — сенсор крупнее или зоны теснее",
+    },
+    "LIGHT SUFFICIENT": {
+        "ru": "СВЕТА ДОСТАТОЧНО",
+    },
+    "LIGHT DEFICIT - add infrared illumination or faster glass": {
+        "ru": "НЕХВАТКА СВЕТА — добавьте ИК-подсветку или светосильную оптику",
+    },
+    "EXCEEDS 1 GbE per camera - needs 2.5/5/10 GbE, lower rate, or compression": {
+        "ru": "ПРЕВЫШАЕТ 1 GbE на камеру — нужен 2.5/5/10 GbE, ниже частота кадров, или сжатие",
+    },
+    "1 GbE above 70 percent - drop risk, leave headroom": {
+        "ru": "1 GbE выше 70% — риск потерь пакетов, оставьте запас",
+    },
+    "1 GbE per camera is sufficient": {
+        "ru": "1 GbE на камеру достаточно",
+    },
+    "10 GbE uplink saturated - use 25 GbE or two network cards": {
+        "ru": "аплинк 10 GbE перегружен — нужен 25 GbE или две сетевые карты",
+    },
+    "server uplink must be 10 GbE": {
+        "ru": "аплинк сервера должен быть 10 GbE",
+    },
+    "1 GbE uplink is sufficient": {
+        "ru": "аплинка 1 GbE достаточно",
+    },
+    "BRIGHTNESS SUFFICIENT": {
+        "ru": "ЯРКОСТИ ДОСТАТОЧНО",
+    },
+    "TOO DIM - raise output, shrink the surface, or choose higher gain": {
+        "ru": "СЛИШКОМ ТУСКЛО — повысьте яркость, уменьшите экран или возьмите gain выше",
+    },
+    "EXCELLENT - tight synchrony achievable": {
+        "ru": "ОТЛИЧНО — достижима высокая синхронность",
+    },
+    "ACCEPTABLE - needs prediction and latency-aware choreography": {
+        "ru": "ПРИЕМЛЕМО — нужны предсказание и хореография с учётом задержки",
+    },
+    "CRITICAL - trailing aesthetics only, no precise accents": {
+        "ru": "КРИТИЧНО — только фоновая эстетика, без точных акцентов",
+    },
+}
+
 
 class Translator:
     """
@@ -313,6 +384,16 @@ class Translator:
         self.language = language
         for callback in list(self._listeners):
             callback()
+
+    def translate_verdict(self, english_text: str) -> str | None:
+        """Small parenthetical translation of a fixed engine verdict string
+        (see VERDICT_TRANSLATIONS above), for the current language. Returns
+        None when the interface is in English (nothing to add) or when no
+        translation exists yet for this exact string/language pair - the
+        caller should simply omit the parenthetical in that case."""
+        if self.language == DEFAULT_LANGUAGE:
+            return None
+        return VERDICT_TRANSLATIONS.get(english_text, {}).get(self.language)
 
     def __call__(self, key: str, **kwargs) -> str:
         table = TRANSLATIONS.get(self.language, {})
