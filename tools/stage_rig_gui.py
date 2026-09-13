@@ -148,9 +148,10 @@ class StageRigApp:
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 stage_math.selftest()
-            messagebox.showinfo(self.i18n("selftest_calc_title"), "OK\n\n" + buf.getvalue()[-400:])
+            messagebox.showinfo(self.i18n("selftest_calc_title"), "OK\n\n" + buf.getvalue()[-400:],
+                               parent=self.root)
         except Exception as e:
-            messagebox.showerror(self.i18n("selftest_calc_fail_title"), str(e))
+            messagebox.showerror(self.i18n("selftest_calc_fail_title"), str(e), parent=self.root)
 
     def _run_probe_selftest(self):
         try:
@@ -160,9 +161,10 @@ class StageRigApp:
             with contextlib.redirect_stdout(buf):
                 import artnet_probe
                 artnet_probe.selftest()
-            messagebox.showinfo(self.i18n("selftest_probe_title"), "OK\n\n" + buf.getvalue()[-400:])
+            messagebox.showinfo(self.i18n("selftest_probe_title"), "OK\n\n" + buf.getvalue()[-400:],
+                               parent=self.root)
         except Exception as e:
-            messagebox.showerror(self.i18n("selftest_probe_fail_title"), str(e))
+            messagebox.showerror(self.i18n("selftest_probe_fail_title"), str(e), parent=self.root)
 
     # ------------------------------------------------------------------ #
     # Calculator tab
@@ -306,7 +308,8 @@ class StageRigApp:
             projector_lumens = float(self.var_lumens.get())
             overlap_pct = float(self.var_overlap.get())
         except ValueError:
-            messagebox.showerror(self.i18n("err_input_title"), self.i18n("err_input_body"))
+            messagebox.showerror(self.i18n("err_input_title"), self.i18n("err_input_body"),
+                                 parent=self.root)
             return
 
         class MockArgs:
@@ -340,10 +343,11 @@ class StageRigApp:
             report = stage_math.analyse(args)
         except stage_math.ValidationError as err:
             # Friendly, specific: this is a checked input problem, not a crash.
-            messagebox.showerror(self.i18n("err_validation_title"), str(err))
+            messagebox.showerror(self.i18n("err_validation_title"), str(err), parent=self.root)
             return
         except Exception as err:
-            messagebox.showerror(self.i18n("err_system_title"), self.i18n("err_system_body", err=err))
+            messagebox.showerror(self.i18n("err_system_title"), self.i18n("err_system_body", err=err),
+                                 parent=self.root)
             return
 
         self._last_report = report
@@ -505,7 +509,8 @@ class StageRigApp:
             try:
                 port = int(self.var_port.get())
             except ValueError:
-                messagebox.showerror(self.i18n("probe_port_error_title"), self.i18n("probe_port_error_body"))
+                messagebox.showerror(self.i18n("probe_port_error_title"), self.i18n("probe_port_error_body"),
+                                     parent=self.root)
                 return
 
             self.probe = ArtNetProbe(bind_addr=ip, port=port)
@@ -513,7 +518,7 @@ class StageRigApp:
                 self.probe.start()
             except Exception as e:
                 messagebox.showerror(self.i18n("probe_bind_error_title"),
-                                     self.i18n("probe_bind_error_body", err=e))
+                                     self.i18n("probe_bind_error_body", err=e), parent=self.root)
                 self.probe = None
                 return
 

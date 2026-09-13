@@ -1,2 +1,26 @@
+# --- IDE ---
 .idea/live-stage-toolkit.iml
 /.idea
+
+# --- Python bytecode / cache ---
+# Regenerated on every run from source - never worth tracking.
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- PyInstaller build output ---
+# build/ and dist/ are regenerated from source (plus the .spec file once one
+# exists). The .spec file itself should be COMMITTED, not ignored, when it's
+# created - it's the reproducible build recipe (which entry point, one-file
+# mode, icon, hidden imports), the equivalent of a Makefile for this project.
+build/
+dist/
+
+# --- OS cruft ---
+.DS_Store
+Thumbs.db
+
+# --- Stray packaged executable ---
+# dist/ above already covers PyInstaller's normal output location; this is
+# just a backstop in case a build ever drops an .exe outside dist/ by mistake.
+*.exe
