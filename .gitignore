@@ -24,3 +24,6 @@ Thumbs.db
 # dist/ above already covers PyInstaller's normal output location; this is
 # just a backstop in case a build ever drops an .exe outside dist/ by mistake.
 *.exe
+
+# --- Inno Setup output ---
+installer/Output/

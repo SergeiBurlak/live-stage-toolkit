@@ -48,6 +48,20 @@ import units
 from artnet_probe import ArtNetProbe, ARTNET_PORT
 from i18n import Translator, LANGUAGES
 
+import sys
+
+
+def _resource_path(relative_path: str) -> str:
+    """Resolve a bundled resource whether running from source or from a
+    PyInstaller-frozen executable. Onefile builds extract to sys._MEIPASS
+    at runtime; onedir builds and plain source runs use the script's own
+    directory."""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, relative_path)
+
+
+LOGO_FILENAME = "logo.png"
+
 
 class StageRigApp:
     # StringVar attribute names holding the six length-based input fields -
@@ -67,7 +81,26 @@ class StageRigApp:
         self.root.minsize(560, 420)
         self.root.resizable(True, True)
 
+        self._logo_full = None
+        self._logo_banner = None
+        try:
+            self._logo_full = tk.PhotoImage(file=_resource_path(LOGO_FILENAME))
+            self.root.iconphoto(True, self._logo_full)  # window/taskbar icon
+            # Banner in the header is a shrunk copy, not the full-size image -
+            # the window was already squeezed down in height once (780->600),
+            # no need to balloon it back out with the logo. subsample() is an
+            # integer downscale available in stock tkinter without Pillow.
+            factor = max(1, self._logo_full.width() // 40)
+            self._logo_banner = self._logo_full.subsample(factor, factor) if factor > 1 else self._logo_full
+        except Exception:
+            pass  # a missing/unsupported logo file must not crash the app
+
         self._build_menu()
+
+        if self._logo_banner is not None:
+            header = ttk.Frame(root)
+            header.pack(fill='x', padx=10, pady=(8, 0))
+            ttk.Label(header, image=self._logo_banner).pack(side='left')
 
         self.notebook = ttk.Notebook(root)
         self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
