@@ -53,11 +53,23 @@ import sys
 
 def _resource_path(relative_path: str) -> str:
     """Resolve a bundled resource whether running from source or from a
-    PyInstaller-frozen executable. Onefile builds extract to sys._MEIPASS
-    at runtime; onedir builds and plain source runs use the script's own
-    directory."""
-    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base, relative_path)
+    PyInstaller-frozen executable.
+
+    Frozen (onedir/onefile): sys._MEIPASS is the bundle root, and the build
+    command places assets there directly (--add-data "assets\\logo.png;.")
+    - so relative_path alone (e.g. "logo.png") resolves correctly.
+
+    Unfrozen (running "python tools/stage_rig_gui.py" straight from the
+    repo, no build): there is no bundle - assets live in a sibling
+    "assets/" folder next to "tools/", not inside "tools/" itself. Look
+    one level up from the script instead of next to it, so dev-mode and
+    the packaged .exe both read the same single copy of the file - no
+    second copy of logo.png needed anywhere in the repo.
+    """
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative_path)
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(repo_root, "assets", relative_path)
 
 
 LOGO_FILENAME = "logo.png"
