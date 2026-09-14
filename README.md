@@ -102,6 +102,29 @@ with a calculator than with a purchase order.
 Early. Tools are used in production on the project they were written for. The
 calculator and the probe include self-tests. Issues and pull requests welcome.
 
+## Getting Started
+
+### For theatre technical staff (Windows, no programming required)
+1. Go to the [Releases page](https://github.com/SergeiBurlak/live-stage-toolkit/releases/latest)
+   and download `LiveStageToolkit-Setup.exe` from the latest release.
+2. Run the installer and follow the prompts.
+3. Launch **Live Stage Toolkit** from the Start Menu or the desktop shortcut it creates.
+
+### For developers (any OS with Python 3.10+)
+No installation needed - the tools have no dependencies beyond the Python standard library.
+
+    git clone https://github.com/SergeiBurlak/live-stage-toolkit.git
+    cd live-stage-toolkit
+    python3 tools/stage_rig_gui.py
+
+Or run the individual command-line tools directly:
+
+    python3 tools/stage_rig_calculator.py --selftest
+    python3 tools/artnet_probe.py --selftest
+
+### Building your own Windows installer
+See [BUILDING.md](BUILDING.md) for the full PyInstaller + Inno Setup recipe.
+
 ## Licence
 
 MIT. Use it, change it, ship it.

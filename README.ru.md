@@ -68,6 +68,29 @@
 
 Ранняя стадия разработки. Инструменты используются в реальной работе над проектом, для которого они были созданы. Калькулятор и диагностический модуль оснащены функциями самопроверки. Приветствуются сообщения об ошибках и запросы на внесение изменений.
 
+## Начало работы
+
+### Для технического персонала театра (Windows, программирование не требуется)
+1. Перейдите на страницу [Releases](https://github.com/SergeiBurlak/live-stage-toolkit/releases/latest)
+   и скачайте `LiveStageToolkit-Setup.exe` из последнего релиза.
+2. Запустите установщик и следуйте подсказкам.
+3. Откройте **Live Stage Toolkit** из меню «Пуск» или с ярлыка на рабочем столе.
+
+### Для разработчиков (любая ОС с Python 3.10+)
+Установка не нужна — инструменты не используют ничего, кроме стандартной библиотеки Python.
+
+    git clone https://github.com/SergeiBurlak/live-stage-toolkit.git
+    cd live-stage-toolkit
+    python3 tools/stage_rig_gui.py
+
+Или отдельные консольные инструменты напрямую:
+
+    python3 tools/stage_rig_calculator.py --selftest
+    python3 tools/artnet_probe.py --selftest
+
+### Сборка собственного Windows-инсталлятора
+Полный рецепт через PyInstaller + Inno Setup — в [BUILDING.md](BUILDING.md).
+
 ## Лицензия
 
 MIT. Используйте, изменяйте, внедряйте.
