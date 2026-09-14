@@ -19,7 +19,7 @@ Usage
 
     t = Translator()                 # defaults to English
     t.set_language("ru")
-    label_text = t("field_width")    # looked up, with fallback to English
+    label_text = t("field_width", unit="m")    # looked up, with fallback
 
     # Formatting: pass keyword arguments, applied with str.format()
     t("probe_listening", ip="0.0.0.0", port=6454)
@@ -31,6 +31,11 @@ TRANSLATIONS (code -> {key: text}). You do not need to translate every
 key on day one - untranslated keys silently show English until someone
 fills them in. Keep the same {placeholders} as the English source string
 for any key you do translate, or str.format() will raise at render time.
+
+Units (metric/imperial) are a separate, orthogonal concern handled by
+units.py and the small number of {unit}-parameterised keys below (the
+length field labels, and the unit_* keys) - see units.py's own docstring
+for why unit conversion lives outside the calculation engine entirely.
 
 Part of the Live Stage Toolkit. MIT licence.
 """
@@ -55,6 +60,15 @@ _EN: dict[str, str] = {
     "menu_diag_calc": "Test calculator (self-test)",
     "menu_diag_probe": "Test network probe (self-test)",
     "menu_language": "Language",
+    "menu_units": "Units",
+    "units_metric": "Metric",
+    "units_imperial": "Imperial (US)",
+
+    # --- Unit words, used inside other keys via {unit}/direct lookup ---
+    "unit_m": "m",
+    "unit_ft": "ft",
+    "unit_lux": "lux",
+    "unit_fc": "fc",
 
     # --- Tabs ---
     "tab_calculator": "Calculator (Mocap & Projection)",
@@ -67,18 +81,23 @@ _EN: dict[str, str] = {
     "frame_verdict": "ENGINEERING CORE VERDICT",
 
     # --- Calculator tab: field labels ---
-    "field_width": "Width (m):",
-    "field_depth": "Depth (m):",
-    "field_rig_height": "Truss height (m):",
-    "field_inset": "Camera inset (m):",
+    # The six length fields carry a {unit} placeholder - filled in at render
+    # time with unit_m or unit_ft depending on the active unit system (see
+    # stage_rig_gui.py's _unit_word()). Every other field is unit-independent
+    # (counts, f-numbers, ISO, percentages, mm focal length, degrees) and
+    # keeps a plain, non-parameterised label.
+    "field_width": "Width ({unit}):",
+    "field_depth": "Depth ({unit}):",
+    "field_rig_height": "Truss height ({unit}):",
+    "field_inset": "Camera inset ({unit}):",
     "field_performers": "Performers:",
     "field_cameras": "Cameras:",
     "field_sensor": "Sensor:",
     "field_fps": "Frame rate (FPS):",
     "field_aperture": "Aperture (f/):",
     "field_iso": "ISO (gain):",
-    "field_screen_width": "Screen width (m):",
-    "field_screen_height": "Screen height (m):",
+    "field_screen_width": "Screen width ({unit}):",
+    "field_screen_height": "Screen height ({unit}):",
     "field_projectors": "Projectors:",
     "field_lumens": "Lumens (each):",
     "field_surface": "Surface:",
@@ -93,8 +112,12 @@ _EN: dict[str, str] = {
     "btn_export": "Export report",
 
     # --- Calculator report template ---
+    # {volume} and {lux} arrive pre-formatted WITH their unit suffix already
+    # attached (see stage_rig_gui.py's _format_length_pair()/
+    # _format_illuminance()) - the template itself no longer hardcodes a
+    # unit word, so it reads correctly under either unit system.
     "report_header": "=== BASELINE INSTALLATION PARAMETERS ===",
-    "report_scene_line": "Stage: {volume} m | Performers: {performers} | Cameras: {cameras}",
+    "report_scene_line": "Stage: {volume} | Performers: {performers} | Cameras: {cameras}",
     "report_sensor_line": "Sensor: {sensor} (Global shutter: {gs})",
     "yes": "Yes",
     "no": "No - PWM banding risk",
@@ -104,14 +127,14 @@ _EN: dict[str, str] = {
     "report_tracking_verdict": "\u2022 Tracking verdict: {verdict}",
     "report_section_2": "--- 2. EXPOSURE AND MOTION ---",
     "report_max_exposure": "\u2022 Max. exposure for sharp hands: {ms} ms",
-    "report_required_light": "\u2022 Required light (at f/{f_number}, ISO {iso}): {lux} lux",
+    "report_required_light": "\u2022 Required light (at f/{f_number}, ISO {iso}): {lux}",
     "report_light_verdict": "\u2022 Light verdict: {verdict}",
     "report_section_3": "--- 3. NETWORK ---",
     "report_per_camera": "\u2022 Per-camera stream: {gbps} Gbit/s",
     "report_uplink_verdict": "\u2022 Server uplink verdict: {verdict}",
     "report_section_4": "--- 4. AVATAR PROJECTION ---",
     "report_effective_lumens": "\u2022 Effective luminous flux: {lumens} lm",
-    "report_screen_illuminance": "\u2022 Surface illuminance: {lux} lux",
+    "report_screen_illuminance": "\u2022 Surface illuminance: {lux}",
     "report_brightness_verdict": "\u2022 Brightness verdict: {verdict}",
     "report_section_5": "--- 5. END-TO-END LATENCY ---",
     "report_latency_path": "\u2022 (Camera -> AI -> Unreal Engine -> Projector)",
@@ -178,6 +201,14 @@ _RU: dict[str, str] = {
     "menu_diag_calc": "Проверить калькулятор (self-test)",
     "menu_diag_probe": "Проверить сетевой зонд (self-test)",
     "menu_language": "Язык",
+    "menu_units": "Единицы",
+    "units_metric": "Метрическая",
+    "units_imperial": "Имперская (США)",
+
+    "unit_m": "м",
+    "unit_ft": "фут",
+    "unit_lux": "люкс",
+    "unit_fc": "фут-кд",
 
     "tab_calculator": "Калькулятор (Mocap & Проекция)",
     "tab_probe": "Сетевой зонд Art-Net",
@@ -187,18 +218,18 @@ _RU: dict[str, str] = {
     "frame_projection": "Проекция на сцене",
     "frame_verdict": "ВЕРДИКТ ИНЖЕНЕРНОГО ЯДРА",
 
-    "field_width": "Ширина (м):",
-    "field_depth": "Глубина (м):",
-    "field_rig_height": "Высота ферм (м):",
-    "field_inset": "Отступ камер (м):",
+    "field_width": "Ширина ({unit}):",
+    "field_depth": "Глубина ({unit}):",
+    "field_rig_height": "Высота ферм ({unit}):",
+    "field_inset": "Отступ камер ({unit}):",
     "field_performers": "Танцовщиков:",
     "field_cameras": "Камер:",
     "field_sensor": "Сенсор:",
     "field_fps": "Кадров/с (FPS):",
     "field_aperture": "Светосила (f/):",
     "field_iso": "ISO (усиление):",
-    "field_screen_width": "Ширина экрана (м):",
-    "field_screen_height": "Высота экрана (м):",
+    "field_screen_width": "Ширина экрана ({unit}):",
+    "field_screen_height": "Высота экрана ({unit}):",
     "field_projectors": "Проекторов:",
     "field_lumens": "Люмен (каждый):",
     "field_surface": "Поверхность:",
@@ -211,7 +242,7 @@ _RU: dict[str, str] = {
     "btn_export": "Экспорт отчёта",
 
     "report_header": "=== БАЗОВЫЕ ПАРАМЕТРЫ УСТАНОВКИ ===",
-    "report_scene_line": "Сцена: {volume} м | Исполнителей: {performers} | Камер: {cameras}",
+    "report_scene_line": "Сцена: {volume} | Исполнителей: {performers} | Камер: {cameras}",
     "report_sensor_line": "Сенсор: {sensor} (Глобальный затвор: {gs})",
     "yes": "Да",
     "no": "Нет - риск ШИМ",
@@ -221,14 +252,14 @@ _RU: dict[str, str] = {
     "report_tracking_verdict": "\u2022 Вердикт трекинга: {verdict}",
     "report_section_2": "--- 2. ЭКСПОЗИЦИЯ И ДВИЖЕНИЕ ---",
     "report_max_exposure": "\u2022 Макс. выдержка для резких рук: {ms} мс",
-    "report_required_light": "\u2022 Требуемый свет (при f/{f_number}, ISO {iso}): {lux} lux",
+    "report_required_light": "\u2022 Требуемый свет (при f/{f_number}, ISO {iso}): {lux}",
     "report_light_verdict": "\u2022 Вердикт света: {verdict}",
     "report_section_3": "--- 3. СЕТЬ ---",
     "report_per_camera": "\u2022 Поток с 1 камеры: {gbps} Гбит/с",
     "report_uplink_verdict": "\u2022 Вердикт Uplink сервера: {verdict}",
     "report_section_4": "--- 4. ПРОЕКЦИЯ АВАТАРОВ ---",
     "report_effective_lumens": "\u2022 Эффективный световой поток: {lumens} lm",
-    "report_screen_illuminance": "\u2022 Освещённость на поверхности: {lux} lux",
+    "report_screen_illuminance": "\u2022 Освещённость на поверхности: {lux}",
     "report_brightness_verdict": "\u2022 Вердикт по яркости: {verdict}",
     "report_section_5": "--- 5. ОБЩАЯ ЗАДЕРЖКА (End-to-End Latency) ---",
     "report_latency_path": "\u2022 (Camera -> AI -> Unreal Engine -> Projector)",

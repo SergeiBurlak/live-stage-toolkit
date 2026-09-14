@@ -17,8 +17,18 @@ Language menu, and room to add more languages - see i18n.py. Only the
 interface chrome is translated; the engineering verdicts returned by
 stage_math.analyse() (e.g. "LIGHT DEFICIT - add infrared illumination or
 faster glass") are fixed English strings from the shared calculation engine
-and are not run through the translator, so they read identically regardless
-of interface language.
+and are not run through the translator - instead, a small parenthetical
+translation is appended next to the English original in a smaller font (see
+i18n.VERDICT_TRANSLATIONS and _render_report() below); the English wording
+itself never changes.
+
+Units (metric/imperial) work the same way as language: a Units menu switches
+live between the two, the calculation engine always receives metres/lux (see
+units.py for why), and only the six length input fields plus the two
+illuminance figures in the report are unit-aware - everything else (focal
+length in mm, degrees, pixels, Gbit/s, milliseconds, f-number, ISO) reads
+the same regardless of unit system, because those are not US/metric-varying
+quantities.
 
 No dependencies beyond the Python standard library, matching the rest of the
 Live Stage Toolkit.
@@ -34,15 +44,23 @@ import os
 import threading
 
 import stage_rig_calculator as stage_math
+import units
 from artnet_probe import ArtNetProbe, ARTNET_PORT
 from i18n import Translator, LANGUAGES
 
 
 class StageRigApp:
+    # StringVar attribute names holding the six length-based input fields -
+    # these are the only ones that need converting (not just relabelling)
+    # when the unit system changes.
+    _LENGTH_VAR_NAMES = ("var_stage_w", "var_stage_d", "var_truss_h",
+                        "var_overhang", "var_scr_w", "var_scr_h")
+
     def __init__(self, root):
         self.root = root
         self.i18n = Translator()  # defaults to English; see i18n.py
-        self._translatable: list = []
+        self.units = units.DEFAULT_UNIT_SYSTEM  # defaults to metric; see units.py
+        self._translatable: list = []  # (widget, key, needs_unit)
 
         self.root.title(self.i18n("app_title"))
         self.root.geometry("640x600")
@@ -64,33 +82,78 @@ class StageRigApp:
         self.setup_probe()
 
     # ------------------------------------------------------------------ #
-    # i18n plumbing
+    # i18n / units plumbing
     # ------------------------------------------------------------------ #
-    def _label(self, parent, key, **grid_kwargs):
-        lbl = ttk.Label(parent, text=self.i18n(key))
+    def _label(self, parent, key, unit=False, **grid_kwargs):
+        text = self.i18n(key, unit=self._unit_word()) if unit else self.i18n(key)
+        lbl = ttk.Label(parent, text=text)
         lbl.grid(**grid_kwargs)
-        self._translatable.append((lbl, key))
+        self._translatable.append((lbl, key, unit))
         return lbl
 
     def _labelframe(self, parent, key, **pack_kwargs):
         frame = ttk.LabelFrame(parent, text=self.i18n(key))
         frame.pack(**pack_kwargs)
-        self._translatable.append((frame, key))
+        self._translatable.append((frame, key, False))
         return frame
 
     def _button(self, parent, key, command, **pack_kwargs):
         btn = ttk.Button(parent, text=self.i18n(key), command=command)
         btn.pack(**pack_kwargs)
-        self._translatable.append((btn, key))
+        self._translatable.append((btn, key, False))
         return btn
+
+    def _unit_word(self) -> str:
+        return self.i18n("unit_ft") if self.units == "imperial" else self.i18n("unit_m")
+
+    def _format_length_pair(self, a_m: float, b_m: float) -> str:
+        """Two lengths (stored in metres internally) formatted together with
+        a single trailing unit, e.g. '7.0 x 6.0 m' or '23.0 x 19.7 ft'."""
+        if self.units == "imperial":
+            a, b = units.m_to_ft(a_m), units.m_to_ft(b_m)
+        else:
+            a, b = a_m, b_m
+        return f"{a:.1f} x {b:.1f} {self._unit_word()}"
+
+    def _format_illuminance(self, value_lux: float) -> str:
+        if self.units == "imperial":
+            return f"{units.lux_to_fc(value_lux):.0f} {self.i18n('unit_fc')}"
+        return f"{value_lux:.0f} {self.i18n('unit_lux')}"
+
+    def _convert_length_fields(self, new_system: str) -> None:
+        """Called on a unit switch: the six length fields hold a real
+        physical quantity, not just a label, so their VALUES must convert,
+        unlike a language switch which only ever changes text. Malformed or
+        empty fields are left alone - calculate() will validate them again
+        if the user proceeds."""
+        convert = units.m_to_ft if new_system == "imperial" else units.ft_to_m
+        for name in self._LENGTH_VAR_NAMES:
+            var = getattr(self, name)
+            try:
+                value = float(var.get())
+            except ValueError:
+                continue
+            var.set(f"{convert(value):.2f}")
 
     def _on_language_selected(self, code: str) -> None:
         self.i18n.set_language(code)
-        self._retranslate_all()
+        self._refresh_all_text()
 
-    def _retranslate_all(self) -> None:
-        for widget, key in self._translatable:
-            widget.config(text=self.i18n(key))
+    def _on_units_selected(self, system: str) -> None:
+        if system == self.units:
+            return
+        self._convert_length_fields(system)
+        self.units = system
+        self._refresh_all_text()
+
+    def _refresh_all_text(self) -> None:
+        """Single refresh path shared by language switches and unit
+        switches - both can change what a label should read (a translated
+        word, or a different unit suffix), and both should re-render
+        whatever is currently on screen so it never looks stale."""
+        for widget, key, needs_unit in self._translatable:
+            text = self.i18n(key, unit=self._unit_word()) if needs_unit else self.i18n(key)
+            widget.config(text=text)
         self.root.title(self.i18n("app_title"))
         self.notebook.tab(0, text=self.i18n("tab_calculator"))
         self.notebook.tab(1, text=self.i18n("tab_probe"))
@@ -104,17 +167,23 @@ class StageRigApp:
             text=self.i18n("probe_stop" if self.probe_running else "probe_start"))
 
         # Re-render whatever is currently on screen so it doesn't stay in
-        # the old language until the next calculation / probe tick.
+        # the old language/units until the next calculation / probe tick.
         if self._last_report is not None:
             self._render_report(self._last_report)
         if self.probe is not None:
             self._render_probe_summary(final=not self.probe_running)
 
     # ------------------------------------------------------------------ #
-    # Menu (Diagnostics + Language)
+    # Menu (Diagnostics + Language + Units)
     # ------------------------------------------------------------------ #
     def _build_menu(self):
-        self.menubar = tk.Menu(self.root)
+        # tearoff=0 matters here, not just style: without it this Tk build
+        # inserts an invisible tearoff entry at index 0, silently shifting
+        # every cascade below over by one and breaking the hardcoded
+        # indices in _retranslate_menu() (verified: switching language or
+        # units raised TclError: unknown option "-label" and aborted the
+        # rest of the refresh, leaving the report stale).
+        self.menubar = tk.Menu(self.root, tearoff=0)
 
         self.diag_menu = tk.Menu(self.menubar, tearoff=0)
         self.diag_menu.add_command(label=self.i18n("menu_diag_calc"), command=self._run_calc_selftest)
@@ -122,8 +191,8 @@ class StageRigApp:
         self.menubar.add_cascade(label=self.i18n("menu_diagnostics"), menu=self.diag_menu)
 
         # Language names are shown in their own language (e.g. "Русский" is
-        # never translated), so this menu itself needs no i18n lookup for
-        # its entries - only its own cascade label is translated.
+        # never translated), so this menu's own entries need no i18n lookup -
+        # only its cascade label is translated.
         self.lang_menu = tk.Menu(self.menubar, tearoff=0)
         self._lang_var = tk.StringVar(value=self.i18n.language)
         for code, display_name in LANGUAGES.items():
@@ -131,6 +200,18 @@ class StageRigApp:
                 label=display_name, value=code, variable=self._lang_var,
                 command=lambda c=code: self._on_language_selected(c))
         self.menubar.add_cascade(label=self.i18n("menu_language"), menu=self.lang_menu)
+
+        # Unlike language names, "Metric"/"Imperial" ARE ordinary words and
+        # get translated.
+        self.units_menu = tk.Menu(self.menubar, tearoff=0)
+        self._units_var = tk.StringVar(value=self.units)
+        self.units_menu.add_radiobutton(
+            label=self.i18n("units_metric"), value="metric", variable=self._units_var,
+            command=lambda: self._on_units_selected("metric"))
+        self.units_menu.add_radiobutton(
+            label=self.i18n("units_imperial"), value="imperial", variable=self._units_var,
+            command=lambda: self._on_units_selected("imperial"))
+        self.menubar.add_cascade(label=self.i18n("menu_units"), menu=self.units_menu)
 
         self.root.config(menu=self.menubar)
 
@@ -140,6 +221,9 @@ class StageRigApp:
         self.diag_menu.entryconfig(0, label=self.i18n("menu_diag_calc"))
         self.diag_menu.entryconfig(1, label=self.i18n("menu_diag_probe"))
         self.menubar.entryconfig(1, label=self.i18n("menu_language"))
+        self.menubar.entryconfig(2, label=self.i18n("menu_units"))
+        self.units_menu.entryconfig(0, label=self.i18n("units_metric"))
+        self.units_menu.entryconfig(1, label=self.i18n("units_imperial"))
 
     def _run_calc_selftest(self):
         try:
@@ -148,8 +232,9 @@ class StageRigApp:
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 stage_math.selftest()
+                units.selftest()
             messagebox.showinfo(self.i18n("selftest_calc_title"), "OK\n\n" + buf.getvalue()[-400:],
-                               parent=self.root)
+                                parent=self.root)
         except Exception as e:
             messagebox.showerror(self.i18n("selftest_calc_fail_title"), str(e), parent=self.root)
 
@@ -162,7 +247,7 @@ class StageRigApp:
                 import artnet_probe
                 artnet_probe.selftest()
             messagebox.showinfo(self.i18n("selftest_probe_title"), "OK\n\n" + buf.getvalue()[-400:],
-                               parent=self.root)
+                                parent=self.root)
         except Exception as e:
             messagebox.showerror(self.i18n("selftest_probe_fail_title"), str(e), parent=self.root)
 
@@ -172,19 +257,19 @@ class StageRigApp:
     def setup_calculator(self):
         lf_stage = self._labelframe(self.calc_frame, "frame_stage", fill='x', padx=10, pady=5)
 
-        self._label(lf_stage, "field_width", row=0, column=0, padx=5, pady=5, sticky='w')
+        self._label(lf_stage, "field_width", unit=True, row=0, column=0, padx=5, pady=5, sticky='w')
         self.var_stage_w = tk.StringVar(value="7.0")
         ttk.Entry(lf_stage, textvariable=self.var_stage_w, width=10).grid(row=0, column=1, padx=5, pady=5)
 
-        self._label(lf_stage, "field_depth", row=0, column=2, padx=5, pady=5, sticky='w')
+        self._label(lf_stage, "field_depth", unit=True, row=0, column=2, padx=5, pady=5, sticky='w')
         self.var_stage_d = tk.StringVar(value="6.0")
         ttk.Entry(lf_stage, textvariable=self.var_stage_d, width=10).grid(row=0, column=3, padx=5, pady=5)
 
-        self._label(lf_stage, "field_rig_height", row=1, column=0, padx=5, pady=5, sticky='w')
+        self._label(lf_stage, "field_rig_height", unit=True, row=1, column=0, padx=5, pady=5, sticky='w')
         self.var_truss_h = tk.StringVar(value="4.5")
         ttk.Entry(lf_stage, textvariable=self.var_truss_h, width=10).grid(row=1, column=1, padx=5, pady=5)
 
-        self._label(lf_stage, "field_inset", row=1, column=2, padx=5, pady=5, sticky='w')
+        self._label(lf_stage, "field_inset", unit=True, row=1, column=2, padx=5, pady=5, sticky='w')
         self.var_overhang = tk.StringVar(value="0.5")
         ttk.Entry(lf_stage, textvariable=self.var_overhang, width=10).grid(row=1, column=3, padx=5, pady=5)
 
@@ -199,8 +284,8 @@ class StageRigApp:
         ttk.Entry(lf_cap, textvariable=self.var_cam, width=10).grid(row=0, column=3, padx=5, pady=5)
 
         # Sensor codes ("imx392", etc.) are technical identifiers shared with
-        # stage_math.SENSORS - they are not language-dependent and are not
-        # translated.
+        # stage_math.SENSORS - they are not language- or unit-dependent and
+        # are never translated or converted.
         self._label(lf_cap, "field_sensor", row=1, column=0, padx=5, pady=5, sticky='w')
         sensor_list = list(stage_math.SENSORS.keys())
         self.var_sensor = tk.StringVar(value="imx392" if "imx392" in sensor_list else sensor_list[0])
@@ -221,11 +306,11 @@ class StageRigApp:
 
         lf_proj = self._labelframe(self.calc_frame, "frame_projection", fill='x', padx=10, pady=5)
 
-        self._label(lf_proj, "field_screen_width", row=0, column=0, padx=5, pady=5, sticky='w')
+        self._label(lf_proj, "field_screen_width", unit=True, row=0, column=0, padx=5, pady=5, sticky='w')
         self.var_scr_w = tk.StringVar(value="7.0")
         ttk.Entry(lf_proj, textvariable=self.var_scr_w, width=10).grid(row=0, column=1, padx=5, pady=5)
 
-        self._label(lf_proj, "field_screen_height", row=0, column=2, padx=5, pady=5, sticky='w')
+        self._label(lf_proj, "field_screen_height", unit=True, row=0, column=2, padx=5, pady=5, sticky='w')
         self.var_scr_h = tk.StringVar(value="4.0")
         ttk.Entry(lf_proj, textvariable=self.var_scr_h, width=10).grid(row=0, column=3, padx=5, pady=5)
 
@@ -239,9 +324,7 @@ class StageRigApp:
 
         # Surface choice: the underlying value used by the calculation
         # (screen_gain) is driven by an internal code ("scrim"/"matte"),
-        # never by pattern-matching the localized display text - that was
-        # a real bug risk (matching Russian "сетка" would silently break
-        # once the label read "scrim" in English).
+        # never by pattern-matching the localized display text.
         self._label(lf_proj, "field_surface", row=2, column=0, padx=5, pady=5, sticky='w')
         self._surface_codes = ["scrim", "matte"]
         self.var_surface_code = tk.StringVar(value="scrim")
@@ -268,6 +351,7 @@ class StageRigApp:
         # after the (always-English) original - see _render_report().
         self.text_res.tag_configure("verdict_note", font=('Consolas', 8))
         self._last_report = None
+        self._last_geom_m = None  # {"width": metres, "depth": metres} at last calculate()
 
     def _refresh_surface_combo(self):
         values = [self.i18n(f"surface_{code}") for code in self._surface_codes]
@@ -290,20 +374,20 @@ class StageRigApp:
         self.text_res.delete('1.0', tk.END)
         self.text_res.config(state='disabled')
 
-        # Parse and range-check the numeric fields ourselves first, so a typo
-        # produces one clear message instead of a generic crash dialog.
+        # Parse the numeric fields ourselves first, so a typo produces one
+        # clear message instead of a generic crash dialog.
         try:
-            width = float(self.var_stage_w.get())
-            depth = float(self.var_stage_d.get())
-            rig_height = float(self.var_truss_h.get())
-            inset = float(self.var_overhang.get())
+            width_in = float(self.var_stage_w.get())
+            depth_in = float(self.var_stage_d.get())
+            rig_height_in = float(self.var_truss_h.get())
+            inset_in = float(self.var_overhang.get())
             performers = int(self.var_perf.get())
             cameras = int(self.var_cam.get())
             fps = int(self.var_fps.get())
             f_number = float(self.var_aperture.get())
             iso = float(self.var_iso.get())
-            screen_width = float(self.var_scr_w.get())
-            screen_height = float(self.var_scr_h.get())
+            screen_width_in = float(self.var_scr_w.get())
+            screen_height_in = float(self.var_scr_h.get())
             projectors = int(self.var_proj.get())
             projector_lumens = float(self.var_lumens.get())
             overlap_pct = float(self.var_overlap.get())
@@ -311,6 +395,17 @@ class StageRigApp:
             messagebox.showerror(self.i18n("err_input_title"), self.i18n("err_input_body"),
                                  parent=self.root)
             return
+
+        # The engine (stage_math.analyse) always works in metres - convert
+        # here, at the GUI boundary, exactly once. If the interface is
+        # already in metric this is a no-op identity conversion.
+        to_m = units.ft_to_m if self.units == "imperial" else (lambda v: v)
+        width = to_m(width_in)
+        depth = to_m(depth_in)
+        rig_height = to_m(rig_height_in)
+        inset = to_m(inset_in)
+        screen_width = to_m(screen_width_in)
+        screen_height = to_m(screen_height_in)
 
         class MockArgs:
             pass
@@ -351,6 +446,11 @@ class StageRigApp:
             return
 
         self._last_report = report
+        # Stashed in metres regardless of display unit, so a later unit
+        # switch can re-render this exact result correctly instead of
+        # re-deriving it from whatever now sits in the (already-converted)
+        # input fields.
+        self._last_geom_m = {"width": width, "depth": depth}
         self._render_report(report)
 
     def _render_report(self, report):
@@ -360,6 +460,10 @@ class StageRigApp:
         # in a non-English language, _emit() below appends a small
         # parenthetical translation (i18n.VERDICT_TRANSLATIONS) right after
         # the English original - the English wording itself never changes.
+        # Lengths and illuminance ARE unit-converted for display - see
+        # _format_length_pair()/_format_illuminance() - using the metres
+        # actually used for this calculation (self._last_geom_m), not
+        # whatever now happens to sit in the input fields.
         t = self.i18n
         inp = report["input"]
         g = report["geometry"]
@@ -379,8 +483,11 @@ class StageRigApp:
                     self.text_res.insert(tk.END, f" ({note})", "verdict_note")
             self.text_res.insert(tk.END, "\n")
 
+        geom = self._last_geom_m or {"width": 0.0, "depth": 0.0}
+        volume_display = self._format_length_pair(geom["width"], geom["depth"])
+
         emit(t("report_header"))
-        emit(t("report_scene_line", volume=inp['volume_m'], performers=inp['performers'],
+        emit(t("report_scene_line", volume=volume_display, performers=inp['performers'],
               cameras=inp['cameras_planned']))
         emit(t("report_sensor_line", sensor=inp['sensor'], gs=t("yes") if inp['global_shutter'] else t("no")))
         emit("")
@@ -394,7 +501,7 @@ class StageRigApp:
         emit(t("report_section_2"))
         emit(t("report_max_exposure", ms=e['max_exposure_ms']))
         emit(t("report_required_light", f_number=e['f_number'], iso=e['sensor_iso_equivalent'],
-              lux=e['required_scene_illuminance_lux']))
+              lux=self._format_illuminance(e['required_scene_illuminance_lux'])))
         emit(t("report_light_verdict", verdict=e['verdict']), verdict=e['verdict'])
         emit("")
         emit(t("report_section_3"))
@@ -403,7 +510,7 @@ class StageRigApp:
         emit("")
         emit(t("report_section_4"))
         emit(t("report_effective_lumens", lumens=p['effective_lumens']))
-        emit(t("report_screen_illuminance", lux=p['screen_illuminance_lux']))
+        emit(t("report_screen_illuminance", lux=self._format_illuminance(p['screen_illuminance_lux'])))
         emit(t("report_brightness_verdict", verdict=p['verdict']), verdict=p['verdict'])
         emit("")
         emit(t("report_section_5"))
