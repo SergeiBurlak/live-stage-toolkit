@@ -44,6 +44,7 @@ import os
 import threading
 
 import stage_rig_calculator as stage_math
+import theme
 import units
 from artnet_probe import ArtNetProbe, ARTNET_PORT
 from i18n import Translator, LANGUAGES
@@ -87,6 +88,8 @@ class StageRigApp:
         self.i18n = Translator()  # defaults to English; see i18n.py
         self.units = units.DEFAULT_UNIT_SYSTEM  # defaults to metric; see units.py
         self._translatable: list = []  # (widget, key, needs_unit)
+        self._style = ttk.Style(root)
+        self._theme_name = "standard"  # menu default: today's look, unchanged - see _apply_theme()
 
         self.root.title(self.i18n("app_title"))
         self.root.geometry("640x600")
@@ -125,6 +128,14 @@ class StageRigApp:
 
         self.setup_calculator()
         self.setup_probe()
+
+        # Snapshot "Standard" (today's OS/Tk look) only now that every
+        # themeable widget - the four Tk menus and both Text widgets -
+        # actually exists. Nothing is applied yet: the GUI's appearance is
+        # untouched until the user picks Dark/Light from the new Theme
+        # menu, so opening the tool for the first time looks exactly as
+        # it always has.
+        self._capture_standard_appearance()
 
     # ------------------------------------------------------------------ #
     # i18n / units plumbing
@@ -190,6 +201,127 @@ class StageRigApp:
         self._convert_length_fields(system)
         self.units = system
         self._refresh_all_text()
+
+    # ------------------------------------------------------------------ #
+    # Theme (Standard / Dark / Light)
+    # ------------------------------------------------------------------ #
+    def _on_theme_selected(self, name: str) -> None:
+        if name == self._theme_name:
+            return
+        self._apply_theme(name)
+
+    def _capture_standard_appearance(self) -> None:
+        """Snapshot every colour this GUI shows before any theme is ever
+        applied: the ttk theme name Tk itself picked for this platform
+        (e.g. "vista" on Windows), each Tk menu's own starting colours
+        (Tk's own symbolic system colours, e.g. "SystemMenu" - not a
+        literal hex guess), and each Text widget's starting background/
+        foreground/cursor colour. "Standard" in the Theme menu restores
+        exactly these captured values rather than reading a dict from
+        theme.py - it IS this OS/Tk build's native look, not a third
+        named theme sitting next to Dark/Light."""
+        self._standard_ttk_theme = self._style.theme_use()
+        self._standard_root_bg = self.root.cget("background")
+        self._standard_menu_colors = {
+            menu: (menu.cget("background"), menu.cget("foreground"),
+                  menu.cget("activebackground"), menu.cget("activeforeground"))
+            for menu in (self.menubar, self.diag_menu, self.lang_menu, self.units_menu, self.theme_menu)
+        }
+        self._standard_text_colors = {
+            widget: (widget.cget("background"), widget.cget("foreground"), widget.cget("insertbackground"))
+            for widget in (self.text_res, self.text_probe)
+        }
+        self._standard_status_tag_colors = {
+            tag: self.text_probe.tag_cget(tag, "foreground") for tag in ("ok", "warn", "bad")
+        }
+
+    def _apply_theme(self, name: str) -> None:
+        """Applies "standard" (see _capture_standard_appearance() above),
+        or one of theme.THEMES's two named dicts, to every themeable
+        widget this GUI has: the ttk style database, the root window, the
+        four Tk menus (classic Tk widgets - ttk's own styling machinery
+        does not reach tk.Menu at all, they need their colours set
+        directly), the two Text widgets and their status tags, and the
+        Combobox popdown listbox (also a plain Tk Listbox under the ttk
+        Combobox, styled through Tk's option database rather than
+        style.configure() - confirmed empirically, not assumed, since
+        ttk.Style has no "Combobox popdown" element of its own)."""
+        if name == "standard":
+            self._style.theme_use(self._standard_ttk_theme)
+            self.root.configure(background=self._standard_root_bg)
+            for menu, (bg, fg, active_bg, active_fg) in self._standard_menu_colors.items():
+                menu.configure(background=bg, foreground=fg,
+                              activebackground=active_bg, activeforeground=active_fg)
+            for widget, (bg, fg, cursor) in self._standard_text_colors.items():
+                widget.configure(background=bg, foreground=fg, insertbackground=cursor)
+            for tag, color in self._standard_status_tag_colors.items():
+                self.text_probe.tag_configure(tag, foreground=color)
+            # Tk's own defaults for a Listbox popped down from a ttk
+            # Combobox on Windows - not a guess: this pair of symbolic
+            # system colour names is what the popdown already looked like
+            # before Dark/Light ever set anything through the option
+            # database (verified directly: tk.Listbox accepts them, and
+            # they are the same names Tk itself falls back to for a plain
+            # unstyled Listbox on this platform).
+            self.root.option_add("*TCombobox*Listbox.background", "SystemWindow")
+            self.root.option_add("*TCombobox*Listbox.foreground", "SystemWindowText")
+            self._theme_name = name
+            return
+
+        tokens = theme.THEMES[name]
+        style = self._style
+
+        # 'clam' is the one built-in ttk theme that reliably honours
+        # style.configure()'s colours across every widget class used
+        # here - Windows' own "vista"/"xpnative" themes mostly ignore a
+        # custom background/foreground for buttons, tabs and entries
+        # (confirmed by comparing the configured colour against what
+        # actually got drawn, not assumed), so genuine Dark/Light needs a
+        # style base that does not itself override colours from the
+        # platform's own native drawing code.
+        style.theme_use("clam")
+        style.configure(".", background=tokens["window"], foreground=tokens["text"])
+        style.configure("TFrame", background=tokens["window"])
+        style.configure("TLabel", background=tokens["window"], foreground=tokens["text"])
+        style.configure("TLabelframe", background=tokens["window"], foreground=tokens["text"])
+        style.configure("TLabelframe.Label", background=tokens["window"], foreground=tokens["text"])
+        style.configure("TButton", background=tokens["surface"], foreground=tokens["text"],
+                        bordercolor=tokens["border"])
+        style.map("TButton",
+                 background=[("active", tokens["select_bg"]), ("pressed", tokens["select_bg"])],
+                 foreground=[("active", tokens["select_fg"]), ("pressed", tokens["select_fg"])])
+        style.configure("TNotebook", background=tokens["window"], bordercolor=tokens["border"])
+        style.configure("TNotebook.Tab", background=tokens["surface"], foreground=tokens["text"])
+        style.map("TNotebook.Tab",
+                 background=[("selected", tokens["select_bg"])],
+                 foreground=[("selected", tokens["select_fg"])])
+        style.configure("TEntry", fieldbackground=tokens["surface"], foreground=tokens["text"],
+                        bordercolor=tokens["border"], insertcolor=tokens["text"])
+        style.configure("TCombobox", fieldbackground=tokens["surface"], foreground=tokens["text"],
+                        background=tokens["surface"], bordercolor=tokens["border"],
+                        arrowcolor=tokens["text"])
+        style.map("TCombobox",
+                 fieldbackground=[("readonly", tokens["surface"])],
+                 foreground=[("readonly", tokens["text"])])
+
+        self.root.configure(background=tokens["window"])
+        self.root.option_add("*TCombobox*Listbox.background", tokens["surface"])
+        self.root.option_add("*TCombobox*Listbox.foreground", tokens["text"])
+        self.root.option_add("*TCombobox*Listbox.selectBackground", tokens["select_bg"])
+        self.root.option_add("*TCombobox*Listbox.selectForeground", tokens["select_fg"])
+
+        for menu in (self.menubar, self.diag_menu, self.lang_menu, self.units_menu, self.theme_menu):
+            menu.configure(background=tokens["surface"], foreground=tokens["text"],
+                          activebackground=tokens["select_bg"], activeforeground=tokens["select_fg"])
+
+        for widget in (self.text_res, self.text_probe):
+            widget.configure(background=tokens["surface"], foreground=tokens["text"],
+                            insertbackground=tokens["text"])
+        self.text_probe.tag_configure("ok", foreground=tokens["status_ok"])
+        self.text_probe.tag_configure("warn", foreground=tokens["status_warn"])
+        self.text_probe.tag_configure("bad", foreground=tokens["status_bad"])
+
+        self._theme_name = name
 
     def _refresh_all_text(self) -> None:
         """Single refresh path shared by language switches and unit
@@ -258,6 +390,16 @@ class StageRigApp:
             command=lambda: self._on_units_selected("imperial"))
         self.menubar.add_cascade(label=self.i18n("menu_units"), menu=self.units_menu)
 
+        # "Standard"/"Dark"/"Light" - like Units above, these are ordinary
+        # words and get translated, unlike the language menu's own names.
+        self.theme_menu = tk.Menu(self.menubar, tearoff=0)
+        self._theme_var = tk.StringVar(value=self._theme_name)
+        for value, key in (("standard", "theme_standard"), ("dark", "theme_dark"), ("light", "theme_light")):
+            self.theme_menu.add_radiobutton(
+                label=self.i18n(key), value=value, variable=self._theme_var,
+                command=lambda v=value: self._on_theme_selected(v))
+        self.menubar.add_cascade(label=self.i18n("menu_theme"), menu=self.theme_menu)
+
         self.root.config(menu=self.menubar)
 
     def _retranslate_menu(self):
@@ -269,6 +411,10 @@ class StageRigApp:
         self.menubar.entryconfig(2, label=self.i18n("menu_units"))
         self.units_menu.entryconfig(0, label=self.i18n("units_metric"))
         self.units_menu.entryconfig(1, label=self.i18n("units_imperial"))
+        self.menubar.entryconfig(3, label=self.i18n("menu_theme"))
+        self.theme_menu.entryconfig(0, label=self.i18n("theme_standard"))
+        self.theme_menu.entryconfig(1, label=self.i18n("theme_dark"))
+        self.theme_menu.entryconfig(2, label=self.i18n("theme_light"))
 
     def _run_calc_selftest(self):
         try:

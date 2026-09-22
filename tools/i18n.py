@@ -63,6 +63,10 @@ _EN: dict[str, str] = {
     "menu_units": "Units",
     "units_metric": "Metric",
     "units_imperial": "Imperial (US)",
+    "menu_theme": "Theme",
+    "theme_standard": "Standard",
+    "theme_dark": "Dark",
+    "theme_light": "Light",
 
     # --- Unit words, used inside other keys via {unit}/direct lookup ---
     "unit_m": "m",
@@ -204,6 +208,10 @@ _RU: dict[str, str] = {
     "menu_units": "Единицы",
     "units_metric": "Метрическая",
     "units_imperial": "Имперская (США)",
+    "menu_theme": "Тема",
+    "theme_standard": "Стандартная",
+    "theme_dark": "Тёмная",
+    "theme_light": "Светлая",
 
     "unit_m": "м",
     "unit_ft": "фут",
