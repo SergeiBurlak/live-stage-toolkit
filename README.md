@@ -110,6 +110,9 @@ calculator and the probe include self-tests. Issues and pull requests welcome.
 2. Run the installer and follow the prompts.
 3. Launch **Live Stage Toolkit** from the Start Menu or the desktop shortcut it creates.
 
+The GUI's **Language** menu switches between English, Russian, and French live,
+with no restart needed.
+
 ### For developers (any OS with Python 3.10+)
 No installation needed - the tools have no dependencies beyond the Python standard library.
 
