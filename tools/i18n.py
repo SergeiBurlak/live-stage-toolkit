@@ -49,6 +49,7 @@ DEFAULT_LANGUAGE = "en"
 LANGUAGES: dict[str, str] = {
     "en": "English",
     "ru": "Русский",
+    "fr": "Français",
 }
 
 # Source of truth. Every key used anywhere in a toolkit GUI must exist here.
@@ -322,9 +323,138 @@ _RU: dict[str, str] = {
                  "джиттер p99: {p99:>5.2f} мс"),
 }
 
+# French translation. Kept as a full, complete set, same bar as Russian
+# above - not a partial stub (the module docstring explains why a partial
+# dict is also safe, but this one was written complete from the start).
+_FR: dict[str, str] = {
+    "app_title": "Calculateur technique : Capture de mouvement et projection",
+    "menu_diagnostics": "Diagnostic",
+    "menu_diag_calc": "Tester le calculateur (auto-test)",
+    "menu_diag_probe": "Tester la sonde réseau (auto-test)",
+    "menu_language": "Langue",
+    "menu_units": "Unités",
+    "units_metric": "Métrique",
+    "units_imperial": "Impérial (US)",
+    "menu_theme": "Thème",
+    "theme_standard": "Standard",
+    "theme_dark": "Sombre",
+    "theme_light": "Clair",
+
+    "unit_m": "m",
+    "unit_ft": "pi",
+    "unit_lux": "lux",
+    "unit_fc": "fc",
+
+    "tab_calculator": "Calculateur (Mocap et projection)",
+    "tab_probe": "Sonde réseau Art-Net",
+
+    "frame_stage": "Scène et géométrie",
+    "frame_capture": "Capture de mouvement (IA sans marqueurs)",
+    "frame_projection": "Projection scénique",
+    "frame_verdict": "VERDICT DU NOYAU D'INGÉNIERIE",
+
+    "field_width": "Largeur ({unit}) :",
+    "field_depth": "Profondeur ({unit}) :",
+    "field_rig_height": "Hauteur de la ferme ({unit}) :",
+    "field_inset": "Retrait des caméras ({unit}) :",
+    "field_performers": "Interprètes :",
+    "field_cameras": "Caméras :",
+    "field_sensor": "Capteur :",
+    "field_fps": "Cadence (ips) :",
+    "field_aperture": "Ouverture (f/) :",
+    "field_iso": "ISO (gain) :",
+    "field_screen_width": "Largeur d'écran ({unit}) :",
+    "field_screen_height": "Hauteur d'écran ({unit}) :",
+    "field_projectors": "Projecteurs :",
+    "field_lumens": "Lumens (chacun) :",
+    "field_surface": "Surface :",
+    "field_overlap": "Chevauchement de fondu (%) :",
+
+    "surface_scrim": "Toile métallisée (Gain 0,15)",
+    "surface_matte": "Mat blanc (Gain 1,0)",
+
+    "btn_calculate": "Calculer la spécification",
+    "btn_export": "Exporter le rapport",
+
+    "report_header": "=== PARAMÈTRES D'INSTALLATION DE BASE ===",
+    "report_scene_line": "Scène : {volume} | Interprètes : {performers} | Caméras : {cameras}",
+    "report_sensor_line": "Capteur : {sensor} (Obturateur global : {gs})",
+    "yes": "Oui",
+    "no": "Non - risque de scintillement PWM",
+    "report_section_1": "--- 1. OPTIQUE ET SUIVI IA ---",
+    "report_lens": "• Objectif recommandé : {focal} mm (champ de vision : {h_fov}° x {v_fov}°)",
+    "report_person_px": "• Silhouette de l'interprète (coin le plus éloigné) : {px} px",
+    "report_tracking_verdict": "• Verdict de suivi : {verdict}",
+    "report_section_2": "--- 2. EXPOSITION ET MOUVEMENT ---",
+    "report_max_exposure": "• Exposition max. pour des mains nettes : {ms} ms",
+    "report_required_light": "• Lumière requise (à f/{f_number}, ISO {iso}) : {lux}",
+    "report_light_verdict": "• Verdict de lumière : {verdict}",
+    "report_section_3": "--- 3. RÉSEAU ---",
+    "report_per_camera": "• Flux par caméra : {gbps} Gbit/s",
+    "report_uplink_verdict": "• Verdict de liaison montante serveur : {verdict}",
+    "report_section_4": "--- 4. PROJECTION DE L'AVATAR ---",
+    "report_effective_lumens": "• Flux lumineux effectif : {lumens} lm",
+    "report_screen_illuminance": "• Éclairement de la surface : {lux}",
+    "report_brightness_verdict": "• Verdict de luminosité : {verdict}",
+    "report_section_5": "--- 5. LATENCE DE BOUT EN BOUT ---",
+    "report_latency_path": "• (Caméra -> IA -> Unreal Engine -> Projecteur)",
+    "report_latency_estimate": "• Estimation : {ms} ms - {verdict}",
+
+    "err_input_title": "Erreur de saisie",
+    "err_input_body": ("Veuillez vous assurer que chaque champ contient un nombre, "
+                       "et que les décimales utilisent un point (par ex. 7.5)."),
+    "err_validation_title": "Vérifiez les valeurs",
+    "err_system_title": "Erreur système",
+    "err_system_body": "Une erreur est survenue dans le moteur de calcul :\n{err}",
+    "report_empty_title": "Le rapport est vide",
+    "report_empty_body": "Cliquez d'abord sur « Calculer la spécification ».",
+    "save_ok_title": "Enregistré",
+    "save_ok_body": "Rapport enregistré !",
+    "save_ok_body_path": "Rapport enregistré dans :\n{path}",
+    "save_err_title": "Erreur d'enregistrement",
+    "save_err_body": "Impossible d'enregistrer : {err}",
+
+    "selftest_calc_title": "Auto-test du calculateur",
+    "selftest_calc_fail_title": "Auto-test du calculateur échoué",
+    "selftest_probe_title": "Auto-test de la sonde réseau",
+    "selftest_probe_fail_title": "Auto-test de la sonde réseau échoué",
+
+    "probe_settings": "Paramètres de la sonde",
+    "probe_ip_label": "Adresse IP (interface) :",
+    "probe_port_label": "Port (Art-Net = 6454) :",
+    "probe_start": "Démarrer la sonde",
+    "probe_stop": "Arrêter la sonde",
+    "probe_status_stopped": "Statut : arrêtée",
+    "probe_status_listening": "Statut : en écoute...",
+    "probe_log_frame": "État du réseau (mise à jour chaque seconde)",
+    "probe_port_error_title": "Erreur",
+    "probe_port_error_body": "Le port doit être un nombre !",
+    "probe_bind_error_title": "Erreur réseau",
+    "probe_bind_error_body": "Impossible de lier le port : {err}",
+    "probe_listening": "Écoute du trafic Art-Net sur {ip}:{port}. En attente de trafic...",
+    "probe_no_traffic": ("Aucun trafic Art-Net détecté.\n"
+                         "Vérifiez le VLAN, le pare-feu sur UDP 6454, et l'adresse cible de l'émetteur."),
+    "probe_final_header": "Rapport final :\n",
+    "probe_live_header": "État actuel (mise à jour) :\n",
+    "probe_verdict_label": "VERDICT : {verdict}",
+    "probe_verdict_bad": ("MAUVAIS - le réseau n'est pas prêt pour le spectacle (pertes ou jitter "
+                          "au-delà d'une trame DMX)"),
+    "probe_verdict_warn": ("BON, mais des redémarrages de l'émetteur ont été détectés (voir "
+                           "ci-dessous) - n'affecte pas le verdict"),
+    "probe_verdict_ok": "BON - pertes et jitter dans la tolérance du spectacle",
+    "probe_resets_note": ("Redémarrages de l'émetteur détectés : {count}. Ce ne sont pas des trames "
+                         "perdues - le compteur de la source (par ex. une console) a simplement "
+                         "redémarré après un redémarrage. Non comptabilisé dans le verdict."),
+    "probe_non_artdmx_note": "Paquets non-Art-Net sur ce port : {count}",
+    "probe_row": ("Univers {universe:>3}  |  {packets:>5} paquets  |  {hz:>5.1f} Hz  |  "
+                 "pertes : {dropped:>3}  doublons : {dup:>2}  redémarrages : {resets:>2}  |  "
+                 "jitter p99 : {p99:>5.2f} ms"),
+}
+
 TRANSLATIONS: dict[str, dict[str, str]] = {
     "en": _EN,
     "ru": _RU,
+    "fr": _FR,
 }
 
 # ---------------------------------------------------------------------------
@@ -348,51 +478,68 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 VERDICT_TRANSLATIONS: dict[str, dict[str, str]] = {
     "subject resolution comfortable": {
         "ru": "разрешение фигуры комфортное",
+        "fr": "résolution du sujet confortable",
     },
     "subject resolution minimally sufficient": {
         "ru": "разрешение фигуры минимально достаточное",
+        "fr": "résolution du sujet minimalement suffisante",
     },
     "SUBJECT RESOLUTION TOO LOW - bigger sensor or tighter zones": {
         "ru": "РАЗРЕШЕНИЕ ФИГУРЫ СЛИШКОМ НИЗКОЕ — сенсор крупнее или зоны теснее",
+        "fr": "RÉSOLUTION DU SUJET TROP FAIBLE — capteur plus grand ou zones plus resserrées",
     },
     "LIGHT SUFFICIENT": {
         "ru": "СВЕТА ДОСТАТОЧНО",
+        "fr": "LUMIÈRE SUFFISANTE",
     },
     "LIGHT DEFICIT - add infrared illumination or faster glass": {
         "ru": "НЕХВАТКА СВЕТА — добавьте ИК-подсветку или светосильную оптику",
+        "fr": "DÉFICIT DE LUMIÈRE — ajoutez un éclairage infrarouge ou une optique plus lumineuse",
     },
     "EXCEEDS 1 GbE per camera - needs 2.5/5/10 GbE, lower rate, or compression": {
         "ru": "ПРЕВЫШАЕТ 1 GbE на камеру — нужен 2.5/5/10 GbE, ниже частота кадров, или сжатие",
+        "fr": ("DÉPASSE 1 GbE par caméra — nécessite 2,5/5/10 GbE, une cadence plus basse, "
+              "ou de la compression"),
     },
     "1 GbE above 70 percent - drop risk, leave headroom": {
         "ru": "1 GbE выше 70% — риск потерь пакетов, оставьте запас",
+        "fr": "1 GbE au-dessus de 70 % — risque de perte, prévoyez une marge",
     },
     "1 GbE per camera is sufficient": {
         "ru": "1 GbE на камеру достаточно",
+        "fr": "1 GbE par caméra est suffisant",
     },
     "10 GbE uplink saturated - use 25 GbE or two network cards": {
         "ru": "аплинк 10 GbE перегружен — нужен 25 GbE или две сетевые карты",
+        "fr": "liaison montante 10 GbE saturée — utilisez 25 GbE ou deux cartes réseau",
     },
     "server uplink must be 10 GbE": {
         "ru": "аплинк сервера должен быть 10 GbE",
+        "fr": "la liaison montante du serveur doit être en 10 GbE",
     },
     "1 GbE uplink is sufficient": {
         "ru": "аплинка 1 GbE достаточно",
+        "fr": "une liaison montante 1 GbE est suffisante",
     },
     "BRIGHTNESS SUFFICIENT": {
         "ru": "ЯРКОСТИ ДОСТАТОЧНО",
+        "fr": "LUMINOSITÉ SUFFISANTE",
     },
     "TOO DIM - raise output, shrink the surface, or choose higher gain": {
         "ru": "СЛИШКОМ ТУСКЛО — повысьте яркость, уменьшите экран или возьмите gain выше",
+        "fr": "TROP SOMBRE — augmentez la puissance, réduisez la surface, ou choisissez un gain plus élevé",
     },
     "EXCELLENT - tight synchrony achievable": {
         "ru": "ОТЛИЧНО — достижима высокая синхронность",
+        "fr": "EXCELLENT — une synchronisation précise est réalisable",
     },
     "ACCEPTABLE - needs prediction and latency-aware choreography": {
         "ru": "ПРИЕМЛЕМО — нужны предсказание и хореография с учётом задержки",
+        "fr": "ACCEPTABLE — nécessite une prédiction et une chorégraphie tenant compte de la latence",
     },
     "CRITICAL - trailing aesthetics only, no precise accents": {
         "ru": "КРИТИЧНО — только фоновая эстетика, без точных акцентов",
+        "fr": "CRITIQUE — esthétique de fond uniquement, pas d'accents précis",
     },
 }
 
