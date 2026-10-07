@@ -566,22 +566,30 @@ class StageRigApp:
         self.text_res.config(state='disabled')
 
         # Parse the numeric fields ourselves first, so a typo produces one
-        # clear message instead of a generic crash dialog.
+        # clear message instead of a generic crash dialog. units.
+        # parse_float() (not the builtin float()) - found live, 2026-10-07,
+        # after French was added: a plain float() only ever accepts a
+        # period, so typing a French/Russian-style "2,4" raised ValueError
+        # here and fell straight into the branch below telling the user to
+        # use a period instead - accepting a comma too is the actual fix
+        # (see that function's own docstring). Integer fields (performers/
+        # cameras/fps/projectors - plain counts, no decimal point concept
+        # applies) stay on the builtin int(), unchanged.
         try:
-            width_in = float(self.var_stage_w.get())
-            depth_in = float(self.var_stage_d.get())
-            rig_height_in = float(self.var_truss_h.get())
-            inset_in = float(self.var_overhang.get())
+            width_in = units.parse_float(self.var_stage_w.get())
+            depth_in = units.parse_float(self.var_stage_d.get())
+            rig_height_in = units.parse_float(self.var_truss_h.get())
+            inset_in = units.parse_float(self.var_overhang.get())
             performers = int(self.var_perf.get())
             cameras = int(self.var_cam.get())
             fps = int(self.var_fps.get())
-            f_number = float(self.var_aperture.get())
-            iso = float(self.var_iso.get())
-            screen_width_in = float(self.var_scr_w.get())
-            screen_height_in = float(self.var_scr_h.get())
+            f_number = units.parse_float(self.var_aperture.get())
+            iso = units.parse_float(self.var_iso.get())
+            screen_width_in = units.parse_float(self.var_scr_w.get())
+            screen_height_in = units.parse_float(self.var_scr_h.get())
             projectors = int(self.var_proj.get())
-            projector_lumens = float(self.var_lumens.get())
-            overlap_pct = float(self.var_overlap.get())
+            projector_lumens = units.parse_float(self.var_lumens.get())
+            overlap_pct = units.parse_float(self.var_overlap.get())
         except ValueError:
             messagebox.showerror(self.i18n("err_input_title"), self.i18n("err_input_body"),
                                  parent=self.root)

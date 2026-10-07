@@ -147,8 +147,14 @@ _EN: dict[str, str] = {
 
     # --- Calculator: dialogs ---
     "err_input_title": "Input error",
-    "err_input_body": ("Please make sure every field contains a number, "
-                       "and that decimals use a period (e.g. 7.5)."),
+    # Updated 2026-10-07 (found live, after French was added): a comma
+    # has been an accepted decimal separator too since units.
+    # parse_float() replaced the raw float() call in calculate() - the
+    # old wording ("decimals use a period") was no longer accurate and
+    # actively misleading once that fix landed.
+    "err_input_body": ("Please make sure every field contains a number "
+                       "(e.g. 7.5 or 7,5), with only one decimal separator - "
+                       "not a thousands separator."),
     "err_validation_title": "Check the values",
     "err_system_title": "System error",
     "err_system_body": "An error occurred in the calculation core:\n{err}",
@@ -275,8 +281,8 @@ _RU: dict[str, str] = {
     "report_latency_estimate": "\u2022 Оценка: {ms} мс - {verdict}",
 
     "err_input_title": "Ошибка ввода",
-    "err_input_body": ("Убедитесь, что во всех полях введены числа, а дробные значения "
-                       "используют точку (например, 7.5)."),
+    "err_input_body": ("Убедитесь, что во всех полях введены числа (например, 7.5 или 7,5) "
+                       "и только один разделитель дробной части - не разделитель тысяч."),
     "err_validation_title": "Проверьте значения",
     "err_system_title": "Системная ошибка",
     "err_system_body": "Произошла ошибка в ядре вычислений:\n{err}",
@@ -401,8 +407,9 @@ _FR: dict[str, str] = {
     "report_latency_estimate": "• Estimation : {ms} ms - {verdict}",
 
     "err_input_title": "Erreur de saisie",
-    "err_input_body": ("Veuillez vous assurer que chaque champ contient un nombre, "
-                       "et que les décimales utilisent un point (par ex. 7.5)."),
+    "err_input_body": ("Veuillez vous assurer que chaque champ contient un nombre "
+                       "(par ex. 7.5 ou 7,5), avec un seul séparateur décimal - "
+                       "pas un séparateur de milliers."),
     "err_validation_title": "Vérifiez les valeurs",
     "err_system_title": "Erreur système",
     "err_system_body": "Une erreur est survenue dans le moteur de calcul :\n{err}",

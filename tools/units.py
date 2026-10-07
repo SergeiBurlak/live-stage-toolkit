@@ -63,6 +63,35 @@ def fl_to_nits(value_fl: float) -> float:
     return value_fl * NITS_PER_FOOTLAMBERT
 
 
+def normalize_decimal_separator(text: str) -> str:
+    """Accepts BOTH ',' and '.' as the decimal point in a numeric field's
+    raw text (found live, 2026-10-07, after adding French: every numeric
+    Entry in stage_rig_gui.py parsed with the builtin float() directly,
+    which only ever accepts a period - typing "2,4" raised ValueError
+    and surfaced the existing "...decimals use a period..." error, even
+    though French - like Russian - writes decimals with a comma; this
+    toolkit's calculator fields are plain tk.Entry/StringVar widgets, not
+    a locale-aware spin box, so accepting either character here is the
+    whole fix, no separate display-side formatting exists to also touch).
+
+    Raises ValueError - the exact exception stage_rig_gui.py's own
+    calculate() already catches and turns into one clear message - if
+    `text` has more than one separator character total (',' and '.'
+    combined): a thousands-separator shape ("1.234,5"/"1,234.5"), never
+    silently guessed at."""
+    if text.count(",") + text.count(".") > 1:
+        raise ValueError(f"ambiguous decimal separator in {text!r} - use only one , or .")
+    return text.replace(",", ".")
+
+
+def parse_float(text: str) -> float:
+    """float(text), accepting a comma as the decimal point too (see
+    normalize_decimal_separator()) - every numeric field in this
+    toolkit should parse through this, not call the builtin float()
+    directly."""
+    return float(normalize_decimal_separator(text))
+
+
 def selftest() -> int:
     # Known reference points, not just round-trips - a round-trip test alone
     # would happily pass even with a consistently-inverted or doubled factor.
@@ -89,6 +118,20 @@ def selftest() -> int:
         assert abs(ft_to_m(m_to_ft(v)) - v) < 1e-9, v
         assert abs(fc_to_lux(lux_to_fc(v)) - v) < 1e-9, v
         assert abs(fl_to_nits(nits_to_fl(v)) - v) < 1e-9, v
+
+    # parse_float()/normalize_decimal_separator() - found live, 2026-10-07,
+    # after French was added: both ',' and '.' must parse to the same
+    # number, and an ambiguous (more than one separator) string must
+    # raise ValueError, the exact exception stage_rig_gui.py's own
+    # calculate() already catches.
+    assert parse_float("2,4") == parse_float("2.4") == 2.4
+    assert parse_float("240") == 240.0
+    for bad in ("1.234,5", "1,234.5", "1.234.5", "1,234,5"):
+        try:
+            parse_float(bad)
+            assert False, f"{bad!r} must raise ValueError, not silently parse"
+        except ValueError:
+            pass
 
     print("SELFTEST OK")
     return 0
