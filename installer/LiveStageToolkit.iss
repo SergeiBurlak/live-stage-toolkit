@@ -1,7 +1,7 @@
 [Setup]
 AppName=Live Stage Toolkit
 AppVersion=1.0.0
-AppPublisher=Queen Anne Project
+AppPublisher=Sergei Burlak: Queen Anne Project
 DefaultDirName={autopf}\LiveStageToolkit
 DefaultGroupName=Live Stage Toolkit
 OutputDir=Output
