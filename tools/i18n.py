@@ -50,6 +50,7 @@ LANGUAGES: dict[str, str] = {
     "en": "English",
     "ru": "Русский",
     "fr": "Français",
+    "zh": "中文",
 }
 
 # Source of truth. Every key used anywhere in a toolkit GUI must exist here.
@@ -458,10 +459,140 @@ _FR: dict[str, str] = {
                  "jitter p99 : {p99:>5.2f} ms"),
 }
 
+# Simplified Chinese. Kept as a full, complete set, same bar as Russian/
+# French above. Added 2026-10-14 for the PUBLIC toolkit only (the
+# Architect's own instruction: pilot it here first, roll out to the
+# private "Pro" tool separately only once this is confirmed working) -
+# see stage_rig_gui.py's own CJK_FONT_FAMILY comment for the font-
+# rendering half of this change (a translated string alone is not
+# enough - Consolas/Segoe UI/TkDefaultFont have no Han glyphs).
+_ZH: dict[str, str] = {
+    "app_title": "工程计算器：动作捕捉与投影",
+    "menu_diagnostics": "诊断",
+    "menu_diag_calc": "测试计算器（自检）",
+    "menu_diag_probe": "测试网络探测器（自检）",
+    "menu_language": "语言",
+    "menu_units": "单位",
+    "units_metric": "公制",
+    "units_imperial": "英制（美国）",
+    "menu_theme": "主题",
+    "theme_standard": "标准",
+    "theme_dark": "深色",
+    "theme_light": "浅色",
+
+    "unit_m": "米",
+    "unit_ft": "英尺",
+    "unit_lux": "勒克斯",
+    "unit_fc": "英尺烛光",
+
+    "tab_calculator": "计算器（动作捕捉与投影）",
+    "tab_probe": "Art-Net 网络探测器",
+
+    "frame_stage": "舞台与几何",
+    "frame_capture": "动作捕捉（无标记 AI）",
+    "frame_projection": "舞台投影",
+    "frame_verdict": "工程核心结论",
+
+    "field_width": "宽度（{unit}）：",
+    "field_depth": "深度（{unit}）：",
+    "field_rig_height": "桁架高度（{unit}）：",
+    "field_inset": "摄像机内缩（{unit}）：",
+    "field_performers": "演员人数：",
+    "field_cameras": "摄像机数量：",
+    "field_sensor": "传感器：",
+    "field_fps": "帧率（FPS）：",
+    "field_aperture": "光圈（f/）：",
+    "field_iso": "ISO（增益）：",
+    "field_screen_width": "屏幕宽度（{unit}）：",
+    "field_screen_height": "屏幕高度（{unit}）：",
+    "field_projectors": "投影机数量：",
+    "field_lumens": "流明（每台）：",
+    "field_surface": "表面：",
+    "field_overlap": "融合重叠（%）：",
+
+    "surface_scrim": "金属幕布（增益 0.15）",
+    "surface_matte": "白色哑光（增益 1.0）",
+
+    "btn_calculate": "计算规格",
+    "btn_export": "导出报告",
+
+    "report_header": "=== 基础安装参数 ===",
+    "report_scene_line": "舞台：{volume} | 演员：{performers} | 摄像机：{cameras}",
+    "report_sensor_line": "传感器：{sensor}（全局快门：{gs}）",
+    "yes": "是",
+    "no": "否 - 存在 PWM 频闪风险",
+    "report_section_1": "--- 1. 光学与 AI 追踪 ---",
+    "report_lens": "• 推荐镜头：{focal} mm（视场角：{h_fov}° x {v_fov}°）",
+    "report_person_px": "• 演员轮廓（最远角）：{px} px",
+    "report_tracking_verdict": "• 追踪结论：{verdict}",
+    "report_section_2": "--- 2. 曝光与运动 ---",
+    "report_max_exposure": "• 手部清晰所需最大曝光时间：{ms} ms",
+    "report_required_light": "• 所需光照（f/{f_number}，ISO {iso} 下）：{lux}",
+    "report_light_verdict": "• 光照结论：{verdict}",
+    "report_section_3": "--- 3. 网络 ---",
+    "report_per_camera": "• 单台摄像机数据流：{gbps} Gbit/s",
+    "report_uplink_verdict": "• 服务器上行结论：{verdict}",
+    "report_section_4": "--- 4. 虚拟形象投影 ---",
+    "report_effective_lumens": "• 有效光通量：{lumens} lm",
+    "report_screen_illuminance": "• 表面照度：{lux}",
+    "report_brightness_verdict": "• 亮度结论：{verdict}",
+    "report_section_5": "--- 5. 端到端延迟 ---",
+    "report_latency_path": "• （摄像机 -> AI -> Unreal Engine -> 投影机）",
+    "report_latency_estimate": "• 估计值：{ms} ms - {verdict}",
+
+    "err_input_title": "输入错误",
+    "err_input_body": ("请确保每个字段都填写了数字（例如 7.5 或 7,5），"
+                       "且只有一个小数分隔符——不是千位分隔符。"),
+    "err_validation_title": "请检查数值",
+    "err_system_title": "系统错误",
+    "err_system_body": "计算核心发生错误：\n{err}",
+    "report_empty_title": "报告为空",
+    "report_empty_body": "请先点击“计算规格”。",
+    "save_ok_title": "已保存",
+    "save_ok_body": "报告已保存！",
+    "save_ok_body_path": "报告已保存到：\n{path}",
+    "save_err_title": "保存错误",
+    "save_err_body": "无法保存：{err}",
+
+    "selftest_calc_title": "计算器自检",
+    "selftest_calc_fail_title": "计算器自检失败",
+    "selftest_probe_title": "网络探测器自检",
+    "selftest_probe_fail_title": "网络探测器自检失败",
+
+    "probe_settings": "探测器设置",
+    "probe_ip_label": "IP 地址（接口）：",
+    "probe_port_label": "端口（Art-Net = 6454）：",
+    "probe_start": "启动探测器",
+    "probe_stop": "停止探测器",
+    "probe_status_stopped": "状态：已停止",
+    "probe_status_listening": "状态：正在监听...",
+    "probe_log_frame": "网络状态（每秒更新）",
+    "probe_port_error_title": "错误",
+    "probe_port_error_body": "端口必须是数字！",
+    "probe_bind_error_title": "网络错误",
+    "probe_bind_error_body": "无法绑定端口：{err}",
+    "probe_listening": "正在 {ip}:{port} 上监听 Art-Net。等待流量...",
+    "probe_no_traffic": ("未检测到 Art-Net 流量。\n"
+                         "请检查 VLAN、UDP 6454 端口的防火墙设置，以及发送方的目标地址。"),
+    "probe_final_header": "最终报告：\n",
+    "probe_live_header": "当前状态（更新中）：\n",
+    "probe_verdict_label": "结论：{verdict}",
+    "probe_verdict_bad": "差 - 网络未达到演出要求（丢包或抖动超过一个 DMX 帧）",
+    "probe_verdict_warn": "良好，但检测到发送方重启（见下文）- 不影响结论",
+    "probe_verdict_ok": "良好 - 丢包和抖动在演出容许范围内",
+    "probe_resets_note": ("检测到发送方重启：{count} 次。这不是丢帧——源设备（例如调光台）的"
+                         "计数器在重启后简单地重新开始计数。不计入结论。"),
+    "probe_non_artdmx_note": "此端口上的非 Art-Net 数据包：{count}",
+    "probe_row": ("Universe {universe:>3}  |  {packets:>5} 个数据包  |  {hz:>5.1f} Hz  |  "
+                 "丢失：{dropped:>3}  重复：{dup:>2}  重启：{resets:>2}  |  "
+                 "p99 抖动：{p99:>5.2f} ms"),
+}
+
 TRANSLATIONS: dict[str, dict[str, str]] = {
     "en": _EN,
     "ru": _RU,
     "fr": _FR,
+    "zh": _ZH,
 }
 
 # ---------------------------------------------------------------------------
@@ -486,67 +617,83 @@ VERDICT_TRANSLATIONS: dict[str, dict[str, str]] = {
     "subject resolution comfortable": {
         "ru": "разрешение фигуры комфортное",
         "fr": "résolution du sujet confortable",
+        "zh": "主体分辨率充足",
     },
     "subject resolution minimally sufficient": {
         "ru": "разрешение фигуры минимально достаточное",
         "fr": "résolution du sujet minimalement suffisante",
+        "zh": "主体分辨率勉强足够",
     },
     "SUBJECT RESOLUTION TOO LOW - bigger sensor or tighter zones": {
         "ru": "РАЗРЕШЕНИЕ ФИГУРЫ СЛИШКОМ НИЗКОЕ — сенсор крупнее или зоны теснее",
         "fr": "RÉSOLUTION DU SUJET TROP FAIBLE — capteur plus grand ou zones plus resserrées",
+        "zh": "主体分辨率过低——需要更大传感器或缩小捕捉区域",
     },
     "LIGHT SUFFICIENT": {
         "ru": "СВЕТА ДОСТАТОЧНО",
         "fr": "LUMIÈRE SUFFISANTE",
+        "zh": "光照充足",
     },
     "LIGHT DEFICIT - add infrared illumination or faster glass": {
         "ru": "НЕХВАТКА СВЕТА — добавьте ИК-подсветку или светосильную оптику",
         "fr": "DÉFICIT DE LUMIÈRE — ajoutez un éclairage infrarouge ou une optique plus lumineuse",
+        "zh": "光照不足——请增加红外照明或使用更大光圈镜头",
     },
     "EXCEEDS 1 GbE per camera - needs 2.5/5/10 GbE, lower rate, or compression": {
         "ru": "ПРЕВЫШАЕТ 1 GbE на камеру — нужен 2.5/5/10 GbE, ниже частота кадров, или сжатие",
         "fr": ("DÉPASSE 1 GbE par caméra — nécessite 2,5/5/10 GbE, une cadence plus basse, "
               "ou de la compression"),
+        "zh": "超过每摄像机 1 GbE——需要 2.5/5/10 GbE、降低帧率或压缩",
     },
     "1 GbE above 70 percent - drop risk, leave headroom": {
         "ru": "1 GbE выше 70% — риск потерь пакетов, оставьте запас",
         "fr": "1 GbE au-dessus de 70 % — risque de perte, prévoyez une marge",
+        "zh": "1 GbE 负载超过 70%——有丢包风险，请留出余量",
     },
     "1 GbE per camera is sufficient": {
         "ru": "1 GbE на камеру достаточно",
         "fr": "1 GbE par caméra est suffisant",
+        "zh": "每摄像机 1 GbE 已足够",
     },
     "10 GbE uplink saturated - use 25 GbE or two network cards": {
         "ru": "аплинк 10 GbE перегружен — нужен 25 GbE или две сетевые карты",
         "fr": "liaison montante 10 GbE saturée — utilisez 25 GbE ou deux cartes réseau",
+        "zh": "10 GbE 上行已饱和——请使用 25 GbE 或两块网卡",
     },
     "server uplink must be 10 GbE": {
         "ru": "аплинк сервера должен быть 10 GbE",
         "fr": "la liaison montante du serveur doit être en 10 GbE",
+        "zh": "服务器上行必须为 10 GbE",
     },
     "1 GbE uplink is sufficient": {
         "ru": "аплинка 1 GbE достаточно",
         "fr": "une liaison montante 1 GbE est suffisante",
+        "zh": "1 GbE 上行已足够",
     },
     "BRIGHTNESS SUFFICIENT": {
         "ru": "ЯРКОСТИ ДОСТАТОЧНО",
         "fr": "LUMINOSITÉ SUFFISANTE",
+        "zh": "亮度充足",
     },
     "TOO DIM - raise output, shrink the surface, or choose higher gain": {
         "ru": "СЛИШКОМ ТУСКЛО — повысьте яркость, уменьшите экран или возьмите gain выше",
         "fr": "TROP SOMBRE — augmentez la puissance, réduisez la surface, ou choisissez un gain plus élevé",
+        "zh": "太暗——请提高输出、缩小屏幕尺寸或选择更高增益",
     },
     "EXCELLENT - tight synchrony achievable": {
         "ru": "ОТЛИЧНО — достижима высокая синхронность",
         "fr": "EXCELLENT — une synchronisation précise est réalisable",
+        "zh": "优秀——可实现高精度同步",
     },
     "ACCEPTABLE - needs prediction and latency-aware choreography": {
         "ru": "ПРИЕМЛЕМО — нужны предсказание и хореография с учётом задержки",
+        "zh": "可接受——需要预测和考虑延迟的编舞设计",
         "fr": "ACCEPTABLE — nécessite une prédiction et une chorégraphie tenant compte de la latence",
     },
     "CRITICAL - trailing aesthetics only, no precise accents": {
         "ru": "КРИТИЧНО — только фоновая эстетика, без точных акцентов",
         "fr": "CRITIQUE — esthétique de fond uniquement, pas d'accents précis",
+        "zh": "严重——仅适合营造氛围效果，无法实现精确动作同步",
     },
 }
 
@@ -596,3 +743,73 @@ class Translator:
             # this is what makes a half-finished new language safe to ship.
             text = _EN.get(key, key)
         return text.format(**kwargs) if kwargs else text
+
+
+_PLACEHOLDER_RE = __import__("re").compile(r"\{(\w+)(?::[^}]*)?\}")
+
+
+def _placeholders(text: str) -> set[str]:
+    """Names inside {..} in `text`, format-spec (":>5.1f" etc.) stripped -
+    e.g. "{hz:>5.1f} Hz" -> {"hz"}. Used by selftest() below to confirm a
+    translated string takes exactly the same .format() arguments as its
+    English original, not just that a translation exists at all - a
+    typo'd/missing placeholder would otherwise only surface the first
+    time that exact key is rendered with real data, in whichever
+    language happens to hit it."""
+    return set(_PLACEHOLDER_RE.findall(text))
+
+
+def selftest() -> int:
+    # Added 2026-10-14 alongside Chinese (zh) - this module never had its
+    # own self-test before (unlike units.py); the module's own docstring
+    # already claims "every language dict is allowed to be a partial
+    # subset" of English, en/ru/fr/zh are each documented ABOVE as "kept
+    # as a full, complete set" instead, a stronger claim worth actually
+    # checking rather than trusting the comment alone.
+    assert "zh" in LANGUAGES and "zh" in TRANSLATIONS, \
+        "Chinese must be registered in both LANGUAGES (switcher) and TRANSLATIONS (strings)"
+
+    en_keys = set(_EN)
+    for lang, table in TRANSLATIONS.items():
+        if lang == "en":
+            continue
+        missing = en_keys - set(table)
+        assert not missing, f"{lang}: missing keys (falls back to English): {sorted(missing)}"
+        for key in en_keys:
+            en_placeholders = _placeholders(_EN[key])
+            lang_placeholders = _placeholders(table[key])
+            assert en_placeholders == lang_placeholders, (
+                f"{lang}.{key!r}: placeholder mismatch - English wants {sorted(en_placeholders)}, "
+                f"got {sorted(lang_placeholders)} ({table[key]!r})")
+
+    # translate_verdict() - a real round trip through the Translator, not
+    # just a dict-literal check above, for one representative zh entry
+    # (same mechanism en/ru/fr already use, just the newest column).
+    t = Translator()
+    t.set_language("zh")
+    assert t.translate_verdict("LIGHT SUFFICIENT") == "光照充足"
+    assert t.translate_verdict("a string with no zh translation yet") is None
+    t.set_language("en")
+    assert t.translate_verdict("LIGHT SUFFICIENT") is None, \
+        "English must never show a parenthetical - it IS the original"
+
+    # __call__()'s own English-fallback path (a key present in English
+    # but missing from some OTHER language) - every key is complete for
+    # zh today, so there is no real gap to exercise this on; punch one
+    # temporarily rather than skipping the check.
+    t.set_language("zh")
+    assert t("app_title") == _ZH["app_title"], "a real zh key must render in zh, not fall back to English"
+    saved = TRANSLATIONS["zh"].pop("app_title")
+    try:
+        assert t("app_title") == _EN["app_title"], \
+            "a key missing from zh must fall back to English, not a raw key name or a crash"
+    finally:
+        TRANSLATIONS["zh"]["app_title"] = saved
+
+    print("SELFTEST OK")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(selftest())
