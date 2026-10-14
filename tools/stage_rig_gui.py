@@ -38,6 +38,7 @@ Part of the Live Stage Toolkit. MIT licence.
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+import tkinter.font as tkfont
 import datetime
 import json
 import os
@@ -74,6 +75,27 @@ def _resource_path(relative_path: str) -> str:
 
 
 LOGO_FILENAME = "logo.png"
+
+# Added alongside Chinese (zh) support, 2026-10-14: every font this GUI
+# sets explicitly (the two Text widgets, the probe status label) names a
+# Latin-only family - Consolas, Segoe UI - with no Han glyph coverage of
+# its own. Tk's own default ttk font (TkDefaultFont, "Segoe UI" on
+# Windows) has the identical gap for every plain Label/Button/Combobox/
+# Menu this app builds through _label()/_button()/_labelframe()/
+# _build_menu(). Windows DOES do its own GDI font-linking fallback for a
+# handful of common Latin fonts, but relying on an unconfirmed OS-level
+# substitution table is exactly the kind of thing to get wrong quietly
+# ("works on my Windows, blank boxes on a stripped-down one") - BUILDING.
+# md already commits this toolkit to Windows specifically, so pin an
+# explicit, broadly-available CJK-capable family instead of hoping.
+# "Microsoft YaHei UI" ships with every Windows install since Vista,
+# covers Simplified Chinese AND Latin/digits cleanly (used ONLY while
+# the active language is "zh" - every other language keeps whatever
+# font this Tk/OS build already had, captured once at startup and
+# restored on switching away, same "capture once, restore on demand"
+# pattern _capture_standard_appearance()/_apply_theme("standard") below
+# already use for colours).
+CJK_FONT_FAMILY = "Microsoft YaHei UI"
 
 
 class StageRigApp:
@@ -136,6 +158,7 @@ class StageRigApp:
         # menu, so opening the tool for the first time looks exactly as
         # it always has.
         self._capture_standard_appearance()
+        self._capture_standard_fonts()
 
     # ------------------------------------------------------------------ #
     # i18n / units plumbing
@@ -193,6 +216,7 @@ class StageRigApp:
 
     def _on_language_selected(self, code: str) -> None:
         self.i18n.set_language(code)
+        self._apply_language_font()
         self._refresh_all_text()
 
     def _on_units_selected(self, system: str) -> None:
@@ -234,6 +258,45 @@ class StageRigApp:
         self._standard_status_tag_colors = {
             tag: self.text_probe.tag_cget(tag, "foreground") for tag in ("ok", "warn", "bad")
         }
+
+    def _capture_standard_fonts(self) -> None:
+        """Snapshot every font this GUI shows before Chinese is ever
+        selected - CJK_FONT_FAMILY's own comment explains why a language
+        switch needs this at all. TkDefaultFont is the ONE named font
+        object every ttk Label/Button/Combobox/LabelFrame this app
+        builds through _label()/_button()/_labelframe() reads by
+        default (tk.Menu widgets use it too, confirmed empirically on
+        this Tk build) - reconfiguring that single named font changes
+        all of them at once, no per-widget loop needed, the same reason
+        Tk ships it as a named font in the first place. The three
+        explicit (family, size[, weight]) tuples are captured as plain
+        values, not read back from the widgets - they never change on
+        their own, so there is nothing to query."""
+        self._standard_default_font_family = tkfont.nametofont("TkDefaultFont").cget("family")
+        self._standard_text_res_font = ('Consolas', 10)
+        self._standard_verdict_note_font = ('Consolas', 8)
+        self._standard_text_probe_font = ('Consolas', 10)
+        self._standard_lbl_status_font = ('Segoe UI', 10, 'bold')
+
+    def _apply_language_font(self) -> None:
+        """Switches every font CJK_FONT_FAMILY's own comment names to a
+        CJK-capable family while the interface is in Chinese, and back
+        to whatever this Tk/OS build started with otherwise - called
+        from _on_language_selected() on every language switch, same
+        "re-render whatever is on screen so it never looks stale"
+        discipline _refresh_all_text() already follows for text."""
+        if self.i18n.language == "zh":
+            tkfont.nametofont("TkDefaultFont").configure(family=CJK_FONT_FAMILY)
+            self.text_res.configure(font=(CJK_FONT_FAMILY, 10))
+            self.text_res.tag_configure("verdict_note", font=(CJK_FONT_FAMILY, 8))
+            self.text_probe.configure(font=(CJK_FONT_FAMILY, 10))
+            self.lbl_status.configure(font=(CJK_FONT_FAMILY, 10, 'bold'))
+        else:
+            tkfont.nametofont("TkDefaultFont").configure(family=self._standard_default_font_family)
+            self.text_res.configure(font=self._standard_text_res_font)
+            self.text_res.tag_configure("verdict_note", font=self._standard_verdict_note_font)
+            self.text_probe.configure(font=self._standard_text_probe_font)
+            self.lbl_status.configure(font=self._standard_lbl_status_font)
 
     def _apply_theme(self, name: str) -> None:
         """Applies "standard" (see _capture_standard_appearance() above),
