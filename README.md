@@ -111,7 +111,9 @@ calculator and the probe include self-tests. Issues and pull requests welcome.
 3. Launch **Live Stage Toolkit** from the Start Menu or the desktop shortcut it creates.
 
 The GUI's **Language** menu switches between English, Russian, French, and
-Chinese live, with no restart needed.
+Chinese live, with no restart needed. Chinese is machine-translated (no
+native/fluent speaker has reviewed it yet) - labelled as such right in
+the menu.
 
 ### For developers (any OS with Python 3.10+)
 No installation needed - the tools have no dependencies beyond the Python standard library.

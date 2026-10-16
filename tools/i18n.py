@@ -50,7 +50,11 @@ LANGUAGES: dict[str, str] = {
     "en": "English",
     "ru": "Русский",
     "fr": "Français",
-    "zh": "中文",
+    # Marked honestly in the switcher itself, not just a code comment -
+    # this is machine-translated (no native/fluent Chinese speaker has
+    # reviewed it), unlike en/ru/fr above. See the _ZH dict's own
+    # docstring comment below for how it was produced.
+    "zh": "中文 (machine-translated)",
 }
 
 # Source of truth. Every key used anywhere in a toolkit GUI must exist here.
@@ -466,6 +470,14 @@ _FR: dict[str, str] = {
 # see stage_rig_gui.py's own CJK_FONT_FAMILY comment for the font-
 # rendering half of this change (a translated string alone is not
 # enough - Consolas/Segoe UI/TkDefaultFont have no Han glyphs).
+#
+# MACHINE-TRANSLATED (Architect's brief, 2026-10-16): unlike ru/fr above,
+# no native/fluent Chinese speaker has reviewed this dict - every string
+# below came from machine translation. Labelled honestly for the user in
+# LANGUAGES above ("中文 (machine-translated)"), not hidden in a comment
+# only a developer would ever read. Revisit this note if/when a real
+# review happens - the label should come off once someone fluent has
+# actually checked these strings, not stay forever "just in case".
 _ZH: dict[str, str] = {
     "app_title": "工程计算器：动作捕捉与投影",
     "menu_diagnostics": "诊断",
