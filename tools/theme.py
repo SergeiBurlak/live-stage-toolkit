@@ -28,8 +28,8 @@ from __future__ import annotations
 # component" bar (3:1) against both themes' own window background below -
 # see selftest(). "dark_green" below deliberately does NOT reuse this -
 # a cool blue accent read as an afterthought on a warm forest-green
-# ground (checked by eye, not just computed) - it gets its own antique-
-# gold accent instead, checked against the exact same selftest() bars.
+# ground (checked by eye, not just computed) - it gets its own gold
+# accent instead, checked against the exact same selftest() bars.
 ACCENT_COLOR = "#2563EB"
 
 THEMES: dict[str, dict[str, str]] = {
@@ -74,29 +74,38 @@ THEMES: dict[str, dict[str, str]] = {
         "status_bad": "#c62828",
     },
     "dark_green": {
-        # Deep forest green, not a hue-shifted copy of "dark" - a warm
-        # antique-gold accent (not ACCENT_COLOR above) pairs with it, the
-        # classic forest/brass combination, and reads as its own identity
-        # rather than "dark theme with a green cast".
-        "accent": "#C9A227",
-        "window": "#0E1511",
-        "surface": "#19251E",         # Entry/Combobox/Text field backgrounds
+        # Deep forest green, not a hue-shifted copy of "dark" - a gold
+        # accent (not ACCENT_COLOR above) pairs with it, the classic
+        # forest/brass combination, and reads as its own identity rather
+        # than "dark theme with a green cast". Lightened +feedback
+        # round 1 (Сергей, 2026-10-21/22): "зелёный слишком тёмный, почти
+        # не отличается от чёрного... золотой ярче" - window/surface/
+        # border raised ~20% in HSL lightness (same hue/saturation, just
+        # lighter), accent pushed to a more saturated, more vivid gold
+        # (S 0.68->0.90, L 0.47->0.58) rather than the original antique-
+        # gold. status_bad/disabled_text re-tuned afterward since the
+        # lighter surface ate into their own contrast margin against it -
+        # not eyeballed, re-measured with this file's own contrast_ratio()
+        # the same way the original values were.
+        "accent": "#F4C634",
+        "window": "#202F26",
+        "surface": "#2E4438",         # Entry/Combobox/Text field backgrounds
         "text": "#E8ECE6",
         "text_secondary": "#9FB3A4",
-        "border": "#33473A",
-        "select_bg": "#C9A227",
+        "border": "#466250",
+        "select_bg": "#F4C634",
         # Gold is light enough that white selection text would fail
         # WCAG AA against it (unlike select_fg in the other two themes,
         # which pairs a light select_fg with a DARK select_bg) - this
         # theme's own select_fg is dark instead, see selftest().
         "select_fg": "#13190E",
-        "disabled_text": "#5C6B60",
+        "disabled_text": "#798C7E",
         # Conventional ok/warn/bad hues (green/amber/red), independent of
         # this theme's own forest/gold identity - tuned bright enough for
         # this specific dark surface, same reasoning as "dark" above.
         "status_ok": "#5FD38A",
         "status_warn": "#E3B341",
-        "status_bad": "#FF7B72",
+        "status_bad": "#FF9891",
     },
 }
 
