@@ -73,6 +73,7 @@ _EN: dict[str, str] = {
     "theme_standard": "Standard",
     "theme_dark": "Dark",
     "theme_light": "Light",
+    "theme_dark_green": "Dark Green",
 
     # --- Unit words, used inside other keys via {unit}/direct lookup ---
     "unit_m": "m",
@@ -224,6 +225,7 @@ _RU: dict[str, str] = {
     "theme_standard": "Стандартная",
     "theme_dark": "Тёмная",
     "theme_light": "Светлая",
+    "theme_dark_green": "Тёмно-зелёная",
 
     "unit_m": "м",
     "unit_ft": "фут",
@@ -350,6 +352,7 @@ _FR: dict[str, str] = {
     "theme_standard": "Standard",
     "theme_dark": "Sombre",
     "theme_light": "Clair",
+    "theme_dark_green": "Vert foncé",
 
     "unit_m": "m",
     "unit_ft": "pi",
@@ -491,6 +494,7 @@ _ZH: dict[str, str] = {
     "theme_standard": "标准",
     "theme_dark": "深色",
     "theme_light": "浅色",
+    "theme_dark_green": "深绿色",
 
     "unit_m": "米",
     "unit_ft": "英尺",

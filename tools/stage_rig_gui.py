@@ -453,11 +453,13 @@ class StageRigApp:
             command=lambda: self._on_units_selected("imperial"))
         self.menubar.add_cascade(label=self.i18n("menu_units"), menu=self.units_menu)
 
-        # "Standard"/"Dark"/"Light" - like Units above, these are ordinary
-        # words and get translated, unlike the language menu's own names.
+        # "Standard"/"Dark"/"Light"/"Dark Green" - like Units above, these
+        # are ordinary words and get translated, unlike the language
+        # menu's own names.
         self.theme_menu = tk.Menu(self.menubar, tearoff=0)
         self._theme_var = tk.StringVar(value=self._theme_name)
-        for value, key in (("standard", "theme_standard"), ("dark", "theme_dark"), ("light", "theme_light")):
+        for value, key in (("standard", "theme_standard"), ("dark", "theme_dark"), ("light", "theme_light"),
+                          ("dark_green", "theme_dark_green")):
             self.theme_menu.add_radiobutton(
                 label=self.i18n(key), value=value, variable=self._theme_var,
                 command=lambda v=value: self._on_theme_selected(v))
@@ -478,6 +480,7 @@ class StageRigApp:
         self.theme_menu.entryconfig(0, label=self.i18n("theme_standard"))
         self.theme_menu.entryconfig(1, label=self.i18n("theme_dark"))
         self.theme_menu.entryconfig(2, label=self.i18n("theme_light"))
+        self.theme_menu.entryconfig(3, label=self.i18n("theme_dark_green"))
 
     def _run_calc_selftest(self):
         try:

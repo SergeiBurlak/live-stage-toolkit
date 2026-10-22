@@ -11,8 +11,8 @@ actually applies these tokens lives in stage_rig_gui.py (StageRigApp's
 own _apply_theme()), which already owns the one Tk root - the same split
 stage_rig_calculator.py/stage_rig_gui.py already use for engine vs GUI.
 
-Only two of the Theme menu's three choices have a token dict here.
-"Standard" is the third choice: this OS/Tk build's own native look, left
+Only three of the Theme menu's four choices have a token dict here.
+"Standard" is the fourth choice: this OS/Tk build's own native look, left
 completely alone rather than replaced by a dict from this file -
 stage_rig_gui.py restores the colours it captured before any theme was
 first applied. That is why THEMES below has no "standard" key.
@@ -21,12 +21,15 @@ Part of the Live Stage Toolkit. MIT licence.
 """
 from __future__ import annotations
 
-# One accent colour, used the same way in both themes (the Notebook's
-# selected tab, focused field borders) instead of a different accent per
-# theme. Chosen by measurement: the colour that clears the WCAG AA bar
-# (4.5:1) for white text drawn on it, and also clears the lower WCAG
-# "UI component" bar (3:1) against both themes' own window background
-# below - see selftest().
+# One accent colour, shared by "dark" and "light" (the Notebook's selected
+# tab, focused field borders) instead of a different accent per theme.
+# Chosen by measurement: the colour that clears the WCAG AA bar (4.5:1)
+# for white text drawn on it, and also clears the lower WCAG "UI
+# component" bar (3:1) against both themes' own window background below -
+# see selftest(). "dark_green" below deliberately does NOT reuse this -
+# a cool blue accent read as an afterthought on a warm forest-green
+# ground (checked by eye, not just computed) - it gets its own antique-
+# gold accent instead, checked against the exact same selftest() bars.
 ACCENT_COLOR = "#2563EB"
 
 THEMES: dict[str, dict[str, str]] = {
@@ -70,6 +73,31 @@ THEMES: dict[str, dict[str, str]] = {
         "status_warn": "#9a6700",
         "status_bad": "#c62828",
     },
+    "dark_green": {
+        # Deep forest green, not a hue-shifted copy of "dark" - a warm
+        # antique-gold accent (not ACCENT_COLOR above) pairs with it, the
+        # classic forest/brass combination, and reads as its own identity
+        # rather than "dark theme with a green cast".
+        "accent": "#C9A227",
+        "window": "#0E1511",
+        "surface": "#19251E",         # Entry/Combobox/Text field backgrounds
+        "text": "#E8ECE6",
+        "text_secondary": "#9FB3A4",
+        "border": "#33473A",
+        "select_bg": "#C9A227",
+        # Gold is light enough that white selection text would fail
+        # WCAG AA against it (unlike select_fg in the other two themes,
+        # which pairs a light select_fg with a DARK select_bg) - this
+        # theme's own select_fg is dark instead, see selftest().
+        "select_fg": "#13190E",
+        "disabled_text": "#5C6B60",
+        # Conventional ok/warn/bad hues (green/amber/red), independent of
+        # this theme's own forest/gold identity - tuned bright enough for
+        # this specific dark surface, same reasoning as "dark" above.
+        "status_ok": "#5FD38A",
+        "status_warn": "#E3B341",
+        "status_bad": "#FF7B72",
+    },
 }
 
 
@@ -99,8 +127,11 @@ def contrast_ratio(hex_a: str, hex_b: str) -> float:
 
 
 def selftest() -> int:
-    assert set(THEMES["dark"]) == set(THEMES["light"]), \
-        "both themes must define the same set of tokens"
+    names = list(THEMES)
+    reference = set(THEMES[names[0]])
+    for name in names[1:]:
+        assert set(THEMES[name]) == reference, \
+            f"{name}: must define the same set of tokens as {names[0]!r}"
 
     for name, tokens in THEMES.items():
         assert contrast_ratio(tokens["text"], tokens["window"]) >= 4.5, \
