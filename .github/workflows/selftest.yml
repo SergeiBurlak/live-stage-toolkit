@@ -1,0 +1,52 @@
+name: Self-tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  selftest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.12"]
+        exclude:
+          - os: windows-latest
+            python-version: "3.10"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Each tool's own selftest() - no dependencies beyond the Python
+      # standard library (README's own "For developers" claim), so no
+      # install step is needed before any of these.
+      - name: stage_rig_calculator.py --selftest
+        run: python tools/stage_rig_calculator.py --selftest
+
+      - name: artnet_probe.py --selftest
+        run: python tools/artnet_probe.py --selftest
+
+      - name: check_readme_sync.py --selftest
+        run: python tools/check_readme_sync.py --selftest
+
+      # README.md/README.ru.md must keep the same number of `##` sections -
+      # catches the exact "added a section, forgot the translation" drift
+      # README_SYNC_PROCESS.md describes.
+      - name: check_readme_sync.py (README.md vs README.ru.md)
+        run: python tools/check_readme_sync.py
+
+      # units.py/theme.py/i18n.py run their own selftest() when executed
+      # directly (no --selftest flag needed for these three).
+      - name: units.py
+        run: python tools/units.py
+
+      - name: theme.py
+        run: python tools/theme.py
+
+      - name: i18n.py
+        run: python tools/i18n.py
