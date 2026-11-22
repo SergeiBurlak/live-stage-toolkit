@@ -30,6 +30,15 @@ import pathlib
 import re
 import sys
 
+# Found live on Windows GitHub Actions runners: stdout there defaults to
+# the cp1252 codec, not UTF-8, so printing a Cyrillic section heading
+# (README.ru.md's own headers, both in real use and in selftest()'s own
+# fixtures) raised UnicodeEncodeError and crashed the whole check. Ubuntu
+# runners and most interactive terminals already default to UTF-8, which
+# is why this went unnoticed until CI ran on windows-latest.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 # Anchored at line start, "##" then required whitespace - this deliberately
 # does NOT match "### sub-heading" lines: after the literal "##", the next
 # character in a "###" line is "#", not whitespace, so \s+ fails there and
